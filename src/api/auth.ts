@@ -7,8 +7,6 @@ export interface AuthResponse {
 
 export interface RegisterResponse {
   userId: string
-  jwtToken: string
-  expiresAt: string
 }
 
 export const login = (slug: string, email: string, password: string) =>
@@ -19,6 +17,9 @@ export const register = (tenantId: string, email: string, password: string) =>
   apiClient
     .post<RegisterResponse>('/api/auth/register', { tenantId, email, password })
     .then((r) => r.data)
+
+export const verifyEmail = (token: string) =>
+  apiClient.get('/api/auth/verify-email', { params: { token } })
 
 export const refreshSession = () =>
   apiClient.post<AuthResponse>('/api/auth/refresh', null).then((r) => r.data)
