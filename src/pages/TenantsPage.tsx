@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Plus, Building2, Pencil, Trash2 } from 'lucide-react'
 import {
-  getTenants, getTenantMe, createTenant, updateTenant, deactivateTenant,
+  getTenants, createTenant, updateTenant, deactivateTenant,
   type Tenant,
 } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
@@ -18,8 +19,6 @@ function Badge({ active }: { active: boolean }) {
     </span>
   )
 }
-
-// ─── Super-admin view: full platform tenant list ──────────────────────────────
 
 function AllTenantsView() {
   const [tenants, setTenants] = useState<Tenant[]>([])
@@ -76,7 +75,13 @@ function AllTenantsView() {
     setEditLoading(true)
     setEditError(null)
     try {
-      await updateTenant(editing.id, editName)
+      await updateTenant(editing.id, {
+        name: editName,
+        timezone: editing.timezone,
+        currency: editing.currency,
+        supportEmail: editing.supportEmail,
+        websiteUrl: editing.websiteUrl,
+      })
       setEditing(null)
       load()
     } catch (err: any) {
@@ -96,7 +101,7 @@ function AllTenantsView() {
     }
   }
 
-  const inputClass = 'w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500'
+  const fieldClass = 'block w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500'
 
   return (
     <>
@@ -121,7 +126,7 @@ function AllTenantsView() {
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Loading…</p>
+            <p className="text-gray-500 text-sm">Loading...</p>
           </div>
         ) : tenants.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -172,11 +177,11 @@ function AllTenantsView() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-300">Name</label>
-              <input type="text" required value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Acme Corp" className={inputClass} />
+              <input type="text" required value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Acme Corp" className={fieldClass} />
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-300">Slug</label>
-              <input type="text" required value={createSlug} onChange={(e) => setCreateSlug(e.target.value)} placeholder="acme-corp" className={inputClass} />
+              <input type="text" required value={createSlug} onChange={(e) => setCreateSlug(e.target.value)} placeholder="acme-corp" className={fieldClass} />
               <p className="text-xs text-gray-500">Lowercase letters, numbers and hyphens only</p>
             </div>
             {createError && <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{createError}</p>}
@@ -185,7 +190,7 @@ function AllTenantsView() {
                 className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
               <button type="submit" disabled={createLoading}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
-                {createLoading ? 'Creating…' : 'Create'}
+                {createLoading ? 'Creating...' : 'Create'}
               </button>
             </div>
           </form>
@@ -197,7 +202,7 @@ function AllTenantsView() {
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-gray-300">Name</label>
-              <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className={inputClass} />
+              <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className={fieldClass} />
             </div>
             {editError && <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>}
             <div className="flex gap-3 pt-2">
@@ -205,7 +210,7 @@ function AllTenantsView() {
                 className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
               <button type="submit" disabled={editLoading}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
-                {editLoading ? 'Saving…' : 'Save'}
+                {editLoading ? 'Saving...' : 'Save'}
               </button>
             </div>
           </form>
@@ -214,135 +219,15 @@ function AllTenantsView() {
     </>
   )
 }
-
-// ─── Regular user view: own tenant only via /me ───────────────────────────────
-
-function MyTenantView() {
-  const { isAdmin } = useAuth()
-  const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [editing, setEditing] = useState(false)
-  const [editName, setEditName] = useState('')
-  const [editLoading, setEditLoading] = useState(false)
-  const [editError, setEditError] = useState<string | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    getTenantMe()
-      .then(setTenant)
-      .catch(() => setError('Failed to load tenant details.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
-
-  const openEdit = () => {
-    if (!tenant) return
-    setEditName(tenant.name)
-    setEditError(null)
-    setEditing(true)
-  }
-
-  const handleEdit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!tenant) return
-    setEditLoading(true)
-    setEditError(null)
-    try {
-      await updateTenant(tenant.id, editName)
-      setEditing(false)
-      load()
-    } catch (err: any) {
-      setEditError(err.response?.data?.detail ?? 'Failed to update tenant.')
-    } finally {
-      setEditLoading(false)
-    }
-  }
-
-  return (
-    <>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-white">Tenants</h1>
-          <p className="text-gray-400 mt-1 text-sm">Your organisation's details</p>
-        </div>
-        {isAdmin && tenant && (
-          <button
-            onClick={openEdit}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors border border-gray-700"
-          >
-            <Pencil className="w-4 h-4" />
-            Edit name
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
-      )}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading…</p>
-        </div>
-      ) : tenant ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
-          {[
-            { label: 'Name', value: tenant.name },
-            { label: 'Slug', value: tenant.slug, mono: true },
-            { label: 'Status', value: <Badge active={tenant.isActive} /> },
-            { label: 'Created', value: new Date(tenant.createdAt).toLocaleDateString() },
-            { label: 'ID', value: tenant.id, mono: true },
-          ].map(({ label, value, mono }) => (
-            <div key={label} className="flex items-center justify-between px-6 py-4">
-              <span className="text-sm text-gray-400 w-24 flex-shrink-0">{label}</span>
-              <span className={`text-sm text-white flex-1 text-right ${mono ? 'font-mono text-gray-300' : ''}`}>
-                {value}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {editing && (
-        <Modal title="Edit Tenant Name" onClose={() => setEditing(false)}>
-          <form onSubmit={handleEdit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-300">Name</label>
-              <input
-                type="text"
-                required
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            {editError && <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>}
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setEditing(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
-              <button type="submit" disabled={editLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
-                {editLoading ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-    </>
-  )
-}
-
-// ─── Page entry point ─────────────────────────────────────────────────────────
 
 export function TenantsPage() {
   const { isSuperAdmin } = useAuth()
 
+  if (!isSuperAdmin) return <Navigate to="/settings" replace />
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      {isSuperAdmin ? <AllTenantsView /> : <MyTenantView />}
+      <AllTenantsView />
     </div>
   )
 }

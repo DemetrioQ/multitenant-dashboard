@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login, register } from '../api/auth'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { login, register, resendVerification } from '../api/auth'
 import { createTenant } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
+import { useRateLimit, formatCountdown, retryAfterSecs } from '../hooks/useRateLimit'
 
 type Mode = 'signin' | 'register'
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const PW_RE_UPPER = /[A-Z]/
+const PW_RE_LOWER = /[a-z]/
+const PW_RE_DIGIT = /[0-9]/
+const PW_RE_SPECIAL = /[^A-Za-z0-9]/
+
+function validatePassword(pw: string): string {
+  if (pw.length < 8) return 'Must be at least 8 characters'
+  if (!PW_RE_UPPER.test(pw)) return 'Must include an uppercase letter'
+  if (!PW_RE_LOWER.test(pw)) return 'Must include a lowercase letter'
+  if (!PW_RE_DIGIT.test(pw)) return 'Must include a digit'
+  if (!PW_RE_SPECIAL.test(pw)) return 'Must include a special character'
+  return ''
+}
 
 function fieldClass(error: string) {
-  return `w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
+  return `block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
     error
       ? 'border-red-500 focus:ring-red-500'
       : 'border-gray-700 focus:ring-indigo-500'
@@ -21,9 +35,83 @@ function FieldError({ msg }: { msg: string }) {
   return <p className="text-red-400 text-xs mt-1">{msg}</p>
 }
 
+
+interface UnverifiedEmailViewProps {
+  slug: string
+  email: string
+  canResendAt: string
+  onBack: () => void
+}
+
+function UnverifiedEmailView({ slug, email, canResendAt, onBack }: UnverifiedEmailViewProps) {
+  const [now, setNow] = useState(Date.now)
+  const [localCooldownUntil, setLocalCooldownUntil] = useState<number | null>(null)
+  const [sent, setSent] = useState(false)
+  const resendRateLimit = useRateLimit()
+
+  const canResendMs = new Date(canResendAt.endsWith('Z') ? canResendAt : canResendAt + 'Z').getTime()
+  const serverSecsLeft = Math.max(0, Math.ceil((canResendMs - now) / 1000))
+  const localSecsLeft = localCooldownUntil !== null
+    ? Math.max(0, Math.ceil((localCooldownUntil - now) / 1000))
+    : 0
+  const secsLeft = Math.max(serverSecsLeft, localSecsLeft)
+  const canResend = secsLeft === 0 && !resendRateLimit.isLimited
+
+  useEffect(() => {
+    if (secsLeft === 0) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [secsLeft === 0])
+
+  const handleResend = async () => {
+    try {
+      await resendVerification(slug, email)
+      setSent(true)
+      setLocalCooldownUntil(Date.now() + 2 * 60 * 1000)
+    } catch (err: any) {
+      if (err.response?.status === 429) resendRateLimit.limit(retryAfterSecs(err))
+    }
+  }
+
+  return (
+    <div className="text-center space-y-4">
+      <p className="text-white font-medium">Verify your email</p>
+      <p className="text-gray-400 text-sm">
+        Your email <span className="text-white">{email}</span> hasn't been verified yet.
+        Check your inbox for the verification link.
+      </p>
+      {sent && (
+        <p className="text-green-400 text-sm">A new link has been sent.</p>
+      )}
+      {resendRateLimit.isLimited ? (
+        <p className="text-red-400 text-sm">
+          Too many attempts. Try again in {formatCountdown(resendRateLimit.secsLeft)}.
+        </p>
+      ) : canResend ? (
+        <button
+          onClick={handleResend}
+          className="text-indigo-400 hover:text-indigo-300 text-sm transition-colors"
+        >
+          Resend verification email
+        </button>
+      ) : (
+        <p className="text-gray-500 text-sm">Resend in {formatCountdown(secsLeft)}</p>
+      )}
+      <button
+        onClick={onBack}
+        className="block text-gray-500 hover:text-gray-400 text-sm transition-colors mx-auto"
+      >
+        Back to sign in
+      </button>
+    </div>
+  )
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAuthenticated, signIn } = useAuth()
+  const flash = (location.state as { flash?: string } | null)?.flash ?? null
 
   useEffect(() => {
     if (isAuthenticated) navigate('/dashboard', { replace: true })
@@ -33,23 +121,22 @@ export function LoginPage() {
   const [registered, setRegistered] = useState(false)
 
   // Sign-in fields
-  const [slug, setSlug] = useState('')
-  const [email, setEmail] = useState('')
+  const [slug, setSlug] = useState(() => localStorage.getItem('rememberedSlug') ?? '')
+  const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') ?? '')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('rememberedSlug'))
 
   // Register-only fields
   const [tenantName, setTenantName] = useState('')
   const [tenantSlug, setTenantSlug] = useState('')
-  const [confirmEmail, setConfirmEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  // Track which fields have been interacted with
   const [touched, setTouched] = useState<Set<string>>(new Set())
-
   const touch = (field: string) =>
     setTouched((prev) => new Set(prev).add(field))
 
-  // Computed inline errors (shown only after touching the field)
   const validationErrors = {
     tenantName:
       tenantName.trim().length > 0 && tenantName.trim().length < 2
@@ -59,15 +146,13 @@ export function LoginPage() {
       tenantSlug.length > 0 && !SLUG_RE.test(tenantSlug)
         ? 'Lowercase letters, numbers and hyphens only (no leading/trailing hyphens)'
         : '',
+    firstName:
+      firstName.length > 100 ? 'Max 100 characters' : '',
+    lastName:
+      lastName.length > 100 ? 'Max 100 characters' : '',
     email: '',
-    confirmEmail:
-      confirmEmail.length > 0 && confirmEmail !== email
-        ? 'Email addresses do not match'
-        : '',
     password:
-      password.length > 0 && password.length < 8
-        ? 'Must be at least 8 characters'
-        : '',
+      password.length > 0 ? validatePassword(password) : '',
     confirmPassword:
       confirmPassword.length > 0 && confirmPassword !== password
         ? 'Passwords do not match'
@@ -79,16 +164,20 @@ export function LoginPage() {
 
   const hasInlineErrors = Object.values(validationErrors).some(Boolean)
 
+  const [unverified, setUnverified] = useState<{ slug: string; email: string; canResendAt: string } | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const loginRateLimit = useRateLimit()
 
   const switchMode = (m: Mode) => {
     setMode(m)
+    setUnverified(null)
     setSubmitError(null)
     setTouched(new Set())
     setEmail('')
     setPassword('')
-    setConfirmEmail('')
+    setFirstName('')
+    setLastName('')
     setConfirmPassword('')
   }
 
@@ -98,9 +187,24 @@ export function LoginPage() {
     setLoading(true)
     try {
       const data = await login(slug, email, password)
+      if (rememberMe) {
+        localStorage.setItem('rememberedSlug', slug)
+        localStorage.setItem('rememberedEmail', email)
+      } else {
+        localStorage.removeItem('rememberedSlug')
+        localStorage.removeItem('rememberedEmail')
+      }
       signIn(data.jwtToken)
       navigate('/dashboard')
     } catch (err: any) {
+      if (err.response?.status === 429) {
+        loginRateLimit.limit(retryAfterSecs(err))
+        return
+      }
+      if (err.response?.status === 403 && err.response?.data?.errorCode === 'EMAIL_NOT_VERIFIED') {
+        setUnverified({ slug, email, canResendAt: err.response.data.canResendAt })
+        return
+      }
       setSubmitError(err.response?.data?.detail ?? 'Login failed. Check your credentials.')
     } finally {
       setLoading(false)
@@ -114,7 +218,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       const tenant = await createTenant(tenantName, tenantSlug)
-      await register(tenant.tenantId, email, password)
+      await register(tenant.tenantId, email, password, firstName, lastName)
       setRegistered(true)
     } catch (err: any) {
       setSubmitError(err.response?.data?.detail ?? 'Registration failed. The tenant slug may already be taken.')
@@ -133,7 +237,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <div className="flex bg-gray-900 border border-gray-800 rounded-xl p-1 mb-4">
+        {!registered && !unverified && <div className="flex bg-gray-900 border border-gray-800 rounded-xl p-1 mb-4">
           <button
             onClick={() => switchMode('signin')}
             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -150,10 +254,20 @@ export function LoginPage() {
           >
             Create account
           </button>
-        </div>
+        </div>}
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-          {registered ? (
+          {flash && (
+            <p className="mb-5 text-emerald-400 text-sm bg-emerald-950/40 border border-emerald-900/50 rounded-lg px-4 py-3">{flash}</p>
+          )}
+          {unverified ? (
+            <UnverifiedEmailView
+              slug={unverified.slug}
+              email={unverified.email}
+              canResendAt={unverified.canResendAt}
+              onBack={() => setUnverified(null)}
+            />
+          ) : registered ? (
             <div className="text-center space-y-3">
               <p className="text-white font-medium">Check your email</p>
               <p className="text-gray-400 text-sm">
@@ -188,7 +302,15 @@ export function LoginPage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">Password</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-300">Password</label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <input
                   type="password" required value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -196,10 +318,25 @@ export function LoginPage() {
                   className={fieldClass('')}
                 />
               </div>
-              {submitError && (
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-gray-900"
+                />
+                <span className="text-sm text-gray-300">Remember me</span>
+              </label>
+
+              {loginRateLimit.isLimited && (
+                <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-2.5">
+                  Too many attempts. Please try again in {formatCountdown(loginRateLimit.secsLeft)}.
+                </p>
+              )}
+              {submitError && !loginRateLimit.isLimited && (
                 <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-2.5">{submitError}</p>
               )}
-              <button type="submit" disabled={loading}
+              <button type="submit" disabled={loading || loginRateLimit.isLimited}
                 className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors text-sm">
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
@@ -238,6 +375,28 @@ export function LoginPage() {
               <div className="border-t border-gray-800 pt-5">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Your account</p>
                 <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1.5">First name</label>
+                      <input
+                        type="text" required value={firstName}
+                        onChange={(e) => { setFirstName(e.target.value); touch('firstName') }}
+                        placeholder="Jane"
+                        className={fieldClass(err('firstName'))}
+                      />
+                      <FieldError msg={err('firstName')} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1.5">Last name</label>
+                      <input
+                        type="text" required value={lastName}
+                        onChange={(e) => { setLastName(e.target.value); touch('lastName') }}
+                        placeholder="Smith"
+                        className={fieldClass(err('lastName'))}
+                      />
+                      <FieldError msg={err('lastName')} />
+                    </div>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
                     <input
@@ -247,16 +406,6 @@ export function LoginPage() {
                       className={fieldClass(err('email'))}
                     />
                     <FieldError msg={err('email')} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Confirm email</label>
-                    <input
-                      type="email" required value={confirmEmail}
-                      onChange={(e) => { setConfirmEmail(e.target.value); touch('confirmEmail') }}
-                      placeholder="you@example.com"
-                      className={fieldClass(err('confirmEmail'))}
-                    />
-                    <FieldError msg={err('confirmEmail')} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>

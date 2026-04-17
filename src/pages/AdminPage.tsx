@@ -1,0 +1,144 @@
+import { useEffect, useState } from 'react'
+import { Navigate, Link } from 'react-router-dom'
+import { Building2, ShieldCheck, ChevronLeft, ChevronRight, Users, Package } from 'lucide-react'
+import { getAdminStats, getAdminTenants, type AdminStats, type TenantsResult } from '../api/admin'
+import { useAuth } from '../hooks/useAuth'
+import type { Tenant } from '../api/tenants'
+
+const PAGE_SIZE = 20
+
+function StatCard({ label, value, icon: Icon, color, bg }: {
+  label: string; value: number; icon: React.ElementType; color: string; bg: string
+}) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-medium text-gray-400">{label}</span>
+        <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${color}`} />
+        </div>
+      </div>
+      <p className="text-3xl font-bold text-white">{value}</p>
+    </div>
+  )
+}
+
+function Badge({ active }: { active: boolean }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
+      active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-800 text-gray-500 border-gray-700'
+    }`}>
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  )
+}
+
+export function AdminPage() {
+  const { isSuperAdmin } = useAuth()
+
+  const [stats, setStats] = useState<AdminStats | null>(null)
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  useEffect(() => {
+    getAdminStats().then(setStats).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    getAdminTenants(page, PAGE_SIZE)
+      .then((data: TenantsResult) => { setTenants(data.items); setTotalCount(data.totalCount) })
+      .catch(() => setError('Failed to load tenants.'))
+      .finally(() => setLoading(false))
+  }, [page])
+
+  if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
+
+  return (
+    <div className="p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <ShieldCheck className="w-5 h-5 text-amber-400" />
+          <h1 className="text-2xl font-semibold text-white">Platform admin</h1>
+        </div>
+        <p className="text-amber-400/70 mt-1 text-sm">Super-admin view — all tenants</p>
+      </div>
+
+      {stats && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          <StatCard label="Total tenants" value={stats.totalTenants} icon={Building2} color="text-amber-400" bg="bg-amber-500/10" />
+          <StatCard label="Total users" value={stats.totalUsers} icon={Users} color="text-indigo-400" bg="bg-indigo-500/10" />
+          <StatCard label="Total products" value={stats.totalProducts} icon={Package} color="text-emerald-400" bg="bg-emerald-500/10" />
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+      )}
+
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <p className="text-gray-500 text-sm">Loading…</p>
+          </div>
+        ) : tenants.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Building2 className="w-8 h-8 text-gray-700" />
+            <p className="text-gray-500 text-sm">No tenants found.</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-800 bg-gray-800/40">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Slug</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                <th className="px-6 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {tenants.map((t) => (
+                <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
+                  <td className="px-6 py-4 text-sm font-medium text-white">{t.name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-400 font-mono">{t.slug}</td>
+                  <td className="px-6 py-4"><Badge active={t.isActive} /></td>
+                  <td className="px-6 py-4 text-sm text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-right">
+                    <Link
+                      to={`/admin/tenants/${t.id}`}
+                      className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                    >
+                      View →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-gray-400">Page {page} of {totalPages}</p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

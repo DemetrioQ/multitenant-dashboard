@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Users, ShieldCheck, ShieldOff } from 'lucide-react'
+import { Users, ShieldCheck, ShieldOff, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import { getUsers, updateUserRole, deactivateUser, type User } from '../api/users'
+import { sendInvitation } from '../api/invitations'
 import { useAuth } from '../hooks/useAuth'
+
+const PAGE_SIZE = 20
 
 function RoleBadge({ role }: { role: string }) {
   const isAdminRole = role === 'admin' || role === 'super-admin'
@@ -28,24 +31,32 @@ function StatusBadge({ active }: { active: boolean }) {
   )
 }
 
-export function UsersPage() {
-  const { userId, isAdmin, isSuperAdmin } = useAuth()
-  const canManage = isAdmin || isSuperAdmin
+export function TeamPage() {
+  const { userId, isAdmin } = useAuth()
 
   const [users, setUsers] = useState<User[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const load = () => {
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteSent, setInviteSent] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
+  const load = (p: number) => {
     setLoading(true)
-    getUsers()
-      .then(setUsers)
-      .catch(() => setError('Failed to load users.'))
+    getUsers(p, PAGE_SIZE)
+      .then((data) => { setUsers(data.items); setTotalCount(data.totalCount) })
+      .catch(() => setError('Failed to load team members.'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(page) }, [page])
 
   const handleToggleRole = async (user: User) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin'
@@ -53,7 +64,7 @@ export function UsersPage() {
     setActionLoading(user.id)
     try {
       await updateUserRole(user.id, newRole)
-      load()
+      load(page)
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to update role.')
     } finally {
@@ -66,7 +77,7 @@ export function UsersPage() {
     setActionLoading(user.id)
     try {
       await deactivateUser(user.id)
-      load()
+      load(page)
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to deactivate user.')
     } finally {
@@ -74,19 +85,65 @@ export function UsersPage() {
     }
   }
 
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviteLoading(true)
+    setInviteError(null)
+    setInviteSent(false)
+    try {
+      await sendInvitation(inviteEmail.trim())
+      setInviteEmail('')
+      setInviteSent(true)
+    } catch {
+      setInviteError('Something went wrong. Please try again.')
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-white">Users</h1>
-        <p className="text-gray-400 mt-1 text-sm">
-          {users.length > 0
-            ? `${users.length} user${users.length !== 1 ? 's' : ''} in this tenant`
-            : 'Manage users in your tenant'}
-          {!canManage && (
-            <span className="ml-2 text-gray-600">· View only (admin required for changes)</span>
-          )}
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Team</h1>
+          <p className="text-gray-400 mt-1 text-sm">
+            {totalCount} member{totalCount !== 1 ? 's' : ''}
+            {!isAdmin && <span className="ml-2 text-gray-600">· View only</span>}
+          </p>
+        </div>
       </div>
+
+      {isAdmin && (
+        <div className="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Invite member</p>
+          <form onSubmit={handleInvite} className="flex gap-3">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => { setInviteEmail(e.target.value); setInviteSent(false); setInviteError(null) }}
+              placeholder="colleague@example.com"
+              className="block flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              type="submit"
+              disabled={inviteLoading || !inviteEmail.trim()}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap"
+            >
+              <UserPlus className="w-4 h-4" />
+              {inviteLoading ? 'Sending…' : 'Send invite'}
+            </button>
+          </form>
+          {inviteSent && (
+            <p className="mt-2 text-sm text-emerald-400">
+              If the email is not already registered, an invitation has been sent.
+            </p>
+          )}
+          {inviteError && (
+            <p className="mt-2 text-sm text-red-400">{inviteError}</p>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
@@ -100,7 +157,7 @@ export function UsersPage() {
         ) : users.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Users className="w-8 h-8 text-gray-700" />
-            <p className="text-gray-500 text-sm">No users found in this tenant.</p>
+            <p className="text-gray-500 text-sm">No team members found.</p>
           </div>
         ) : (
           <table className="w-full">
@@ -110,7 +167,7 @@ export function UsersPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joined</th>
-                {canManage && <th className="px-6 py-3" />}
+                {isAdmin && <th className="px-6 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -119,18 +176,15 @@ export function UsersPage() {
                   <td className="px-6 py-4 text-sm font-medium text-white">{u.email}</td>
                   <td className="px-6 py-4"><RoleBadge role={u.role} /></td>
                   <td className="px-6 py-4"><StatusBadge active={u.isActive} /></td>
-                  <td className="px-6 py-4 text-sm text-gray-400">
-                    {new Date(u.createdAt).toLocaleDateString()}
-                  </td>
-                  {canManage && (
+                  <td className="px-6 py-4 text-sm text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  {isAdmin && (
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleToggleRole(u)}
                           disabled={actionLoading === u.id || u.role === 'super-admin' || (u.role === 'admin' && u.id === userId)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40
-                            text-gray-400 border-gray-700 hover:text-white hover:border-gray-600 hover:bg-gray-800"
                           title={u.role === 'admin' && u.id === userId ? 'Cannot demote yourself' : u.role === 'admin' ? 'Demote to member' : 'Promote to admin'}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600 hover:bg-gray-800"
                         >
                           {u.role === 'admin'
                             ? <><ShieldOff className="w-3.5 h-3.5" /> Demote</>
@@ -141,9 +195,8 @@ export function UsersPage() {
                           <button
                             onClick={() => handleDeactivate(u)}
                             disabled={actionLoading === u.id || u.id === userId}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40
-                              text-red-400 border-red-900/50 hover:bg-red-950/30"
                             title={u.id === userId ? 'Cannot deactivate yourself' : undefined}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 text-red-400 border-red-900/50 hover:bg-red-950/30"
                           >
                             Deactivate
                           </button>
@@ -157,6 +210,28 @@ export function UsersPage() {
           </table>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-gray-400">Page {page} of {totalPages}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

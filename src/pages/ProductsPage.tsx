@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Plus, Package, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
-import { getProducts, createProduct, updateProduct, deleteProduct, type Product } from '../api/products'
+import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight } from 'lucide-react'
+import { getProducts, createProduct, updateProduct, deleteProduct, setProductStatus, type Product } from '../api/products'
+import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 
 const PAGE_SIZE = 10
@@ -90,14 +91,15 @@ function ProductFormFields({
   )
 }
 
-export function ProductsPage() {
+export function ProductsPage({ initialCreate = false }: { initialCreate?: boolean }) {
+  const { isAdmin } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [showCreate, setShowCreate] = useState(false)
+  const [showCreate, setShowCreate] = useState(initialCreate)
   const [createForm, setCreateForm] = useState<ProductForm>(emptyForm)
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -113,7 +115,7 @@ export function ProductsPage() {
     setLoading(true)
     getProducts(p, PAGE_SIZE)
       .then((data) => {
-        setProducts(data.products)
+        setProducts(data.items)
         setTotalCount(data.totalCount)
       })
       .catch(() => setError('Failed to load products.'))
@@ -173,6 +175,17 @@ export function ProductsPage() {
       setEditError(err.response?.data?.detail ?? 'Failed to update product.')
     } finally {
       setEditLoading(false)
+    }
+  }
+
+  const handleToggleStatus = async (product: Product) => {
+    const next = !product.isActive
+    if (!confirm(`${next ? 'Activate' : 'Deactivate'} "${product.name}"?`)) return
+    try {
+      await setProductStatus(product.id, next)
+      load(page)
+    } catch (err: any) {
+      alert(err.response?.data?.detail ?? 'Failed to update product status.')
     }
   }
 
@@ -247,13 +260,28 @@ export function ProductsPage() {
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button
-                        onClick={() => handleDelete(p)}
-                        className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleToggleStatus(p)}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            p.isActive
+                              ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
+                              : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
+                          }`}
+                          title={p.isActive ? 'Deactivate' : 'Activate'}
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {isAdmin && p.isActive && (
+                        <button
+                          onClick={() => handleDelete(p)}
+                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
