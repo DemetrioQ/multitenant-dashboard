@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Save, Undo2, Eye, Loader2 } from 'lucide-react'
 import {
@@ -29,20 +30,27 @@ const BODY_MAX = 20_000
 export function EmailTemplateEditorPage() {
   const { isAdmin } = useAuth()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { type } = useParams<{ type: string }>()
 
   const isValidType = (t: string | undefined): t is EmailTemplateType =>
     !!t && (VALID_TYPES as string[]).includes(t)
+
+  const validType = isValidType(type) ? type : null
+
+  const { data: fetchedDetail, isLoading, error: fetchError } = useQuery({
+    queryKey: ['emailTemplate', validType],
+    queryFn: () => getEmailTemplate(validType!),
+    enabled: !!validType && isAdmin,
+  })
 
   const [detail, setDetail] = useState<EmailTemplateDetail | null>(null)
   const [subject, setSubject] = useState('')
   const [bodyHtml, setBodyHtml] = useState('')
   const [enabled, setEnabled] = useState(true)
 
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [reverting, setReverting] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
 
@@ -54,24 +62,21 @@ export function EmailTemplateEditorPage() {
   const subjectRef = useRef<HTMLInputElement>(null)
   const lastFocusedField = useRef<'subject' | 'body'>('body')
 
+  // Sync local form state when query data arrives or template type changes.
   useEffect(() => {
-    if (!isValidType(type)) {
-      setLoadError('Unknown template type.')
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setLoadError(null)
-    getEmailTemplate(type)
-      .then((d) => {
-        setDetail(d)
-        setSubject(d.subject)
-        setBodyHtml(d.bodyHtml)
-        setEnabled(d.enabled)
-      })
-      .catch(() => setLoadError('Failed to load template.'))
-      .finally(() => setLoading(false))
-  }, [type])
+    if (!fetchedDetail) return
+    setDetail(fetchedDetail)
+    setSubject(fetchedDetail.subject)
+    setBodyHtml(fetchedDetail.bodyHtml)
+    setEnabled(fetchedDetail.enabled)
+  }, [fetchedDetail])
+
+  const loading = isLoading && !detail
+  const loadError = !validType
+    ? 'Unknown template type.'
+    : fetchError
+      ? 'Failed to load template.'
+      : null
 
   // Debounced live preview
   useEffect(() => {
@@ -133,6 +138,8 @@ export function EmailTemplateEditorPage() {
     try {
       const updated = await saveEmailTemplate(type, { subject, bodyHtml, enabled })
       setDetail(updated)
+      qc.setQueryData(['emailTemplate', type], updated)
+      qc.invalidateQueries({ queryKey: ['emailTemplates'] })
       setSavedFlash(true)
       setTimeout(() => setSavedFlash(false), 2500)
     } catch (err: any) {
@@ -149,6 +156,8 @@ export function EmailTemplateEditorPage() {
     setSaveError(null)
     try {
       await revertEmailTemplate(type)
+      qc.invalidateQueries({ queryKey: ['emailTemplates'] })
+      qc.invalidateQueries({ queryKey: ['emailTemplate', type] })
       navigate('/settings/emails')
     } catch (err: any) {
       setSaveError(err?.response?.data?.detail ?? 'Failed to revert template.')

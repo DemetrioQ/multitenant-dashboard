@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ShoppingCart, MailCheck, MailX } from 'lucide-react'
 import { getCustomer, type CustomerDetail } from '../api/customers'
@@ -30,24 +30,16 @@ function displayName(c: CustomerDetail): string {
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { tenantCurrency } = useAuth()
-  const [customer, setCustomer] = useState<CustomerDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    getCustomer(id)
-      .then(setCustomer)
-      .catch((err) => {
-        if (err?.response?.status === 404) setError('Customer not found.')
-        else setError('Failed to load customer.')
-      })
-      .finally(() => setLoading(false))
-  }, [id])
+  const { data: customer, isLoading, error } = useQuery<CustomerDetail>({
+    queryKey: ['customer', id],
+    queryFn: () => getCustomer(id!),
+    enabled: !!id,
+  })
+  const showSpinner = isLoading && !customer
+  const notFound = (error as any)?.response?.status === 404
 
-  if (loading) {
+  if (showSpinner) {
     return (
       <div className="p-8 max-w-5xl mx-auto">
         <p className="text-gray-500 text-sm">Loading…</p>
@@ -62,7 +54,7 @@ export function CustomerDetailPage() {
           <ArrowLeft className="w-4 h-4" /> Back to customers
         </Link>
         <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
-          {error ?? 'Customer not found.'}
+          {notFound ? 'Customer not found.' : 'Failed to load customer.'}
         </div>
       </div>
     )

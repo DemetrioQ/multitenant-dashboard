@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate, useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Users, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAdminTenant, getAdminTenantUsers, setTenantStatus } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
 import type { Tenant } from '../api/tenants'
-import type { User } from '../api/users'
 
 const PAGE_SIZE = 20
 
@@ -21,34 +21,27 @@ function Badge({ active }: { active: boolean }) {
 export function AdminTenantDetailPage() {
   const { isSuperAdmin } = useAuth()
   const { id } = useParams<{ id: string }>()
-
-  const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [users, setUsers] = useState<User[]>([])
-  const [totalUsers, setTotalUsers] = useState(0)
+  const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [usersLoading, setUsersLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [toggling, setToggling] = useState(false)
 
+  const { data: tenant, isLoading, error } = useQuery({
+    queryKey: ['admin', 'tenant', id],
+    queryFn: () => getAdminTenant(id!),
+    enabled: !!id && isSuperAdmin,
+  })
+  const showSpinner = isLoading && !tenant
+
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin', 'tenant', id, 'users', page],
+    queryFn: () => getAdminTenantUsers(id!, page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+    enabled: !!id && isSuperAdmin,
+  })
+  const users = usersData?.items ?? []
+  const totalUsers = usersData?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE))
-
-  useEffect(() => {
-    if (!id) return
-    getAdminTenant(id)
-      .then(setTenant)
-      .catch(() => setError('Failed to load tenant.'))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  useEffect(() => {
-    if (!id) return
-    setUsersLoading(true)
-    getAdminTenantUsers(id, page, PAGE_SIZE)
-      .then((data) => { setUsers(data.items); setTotalUsers(data.totalCount) })
-      .catch(() => {})
-      .finally(() => setUsersLoading(false))
-  }, [id, page])
+  const showUsersSpinner = usersLoading && !usersData
 
   const handleToggleStatus = async () => {
     if (!tenant || !id) return
@@ -57,7 +50,10 @@ export function AdminTenantDetailPage() {
     setToggling(true)
     try {
       await setTenantStatus(id, next)
-      setTenant((prev) => prev ? { ...prev, isActive: next } : prev)
+      qc.setQueryData(['admin', 'tenant', id], (prev: Tenant | undefined) =>
+        prev ? { ...prev, isActive: next } : prev
+      )
+      qc.invalidateQueries({ queryKey: ['admin', 'tenants'] })
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to update tenant status.')
     } finally {
@@ -73,12 +69,12 @@ export function AdminTenantDetailPage() {
         <ArrowLeft className="w-4 h-4" /> Back to tenants
       </Link>
 
-      {loading ? (
+      {showSpinner ? (
         <div className="flex items-center justify-center py-20">
           <p className="text-gray-500 text-sm">Loading…</p>
         </div>
       ) : error ? (
-        <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenant.</div>
       ) : tenant ? (
         <>
           <div className="flex items-start justify-between mb-8">
@@ -117,7 +113,7 @@ export function AdminTenantDetailPage() {
             <h2 className="text-sm font-medium text-white">Members ({totalUsers})</h2>
           </div>
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            {usersLoading ? (
+            {showUsersSpinner ? (
               <div className="flex items-center justify-center py-12">
                 <p className="text-gray-500 text-sm">Loading…</p>
               </div>

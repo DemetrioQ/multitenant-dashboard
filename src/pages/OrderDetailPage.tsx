@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Package, CheckCircle2, XCircle } from 'lucide-react'
 import {
@@ -43,26 +44,20 @@ function shippingLines(o: OrderDetail): string[] {
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { tenantCurrency, isAdmin } = useAuth()
-  const [order, setOrder] = useState<OrderDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const qc = useQueryClient()
+
+  const { data: order, isLoading, error } = useQuery({
+    queryKey: ['order', id],
+    queryFn: () => getOrder(id!),
+    enabled: !!id,
+  })
+  const showSpinner = isLoading && !order
+  const notFound = (error as any)?.response?.status === 404
+
   const [actionLoading, setActionLoading] = useState<'fulfill' | 'cancel' | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    getOrder(id)
-      .then(setOrder)
-      .catch((err) => {
-        if (err?.response?.status === 404) setError('Order not found.')
-        else setError('Failed to load order.')
-      })
-      .finally(() => setLoading(false))
-  }, [id])
-
-  if (loading) {
+  if (showSpinner) {
     return (
       <div className="p-8 max-w-5xl mx-auto">
         <p className="text-gray-500 text-sm">Loading…</p>
@@ -77,7 +72,7 @@ export function OrderDetailPage() {
           <ArrowLeft className="w-4 h-4" /> Back to orders
         </Link>
         <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
-          {error ?? 'Order not found.'}
+          {notFound ? 'Order not found.' : 'Failed to load order.'}
         </div>
       </div>
     )
@@ -86,13 +81,18 @@ export function OrderDetailPage() {
   const canFulfill = order.status === 'paid'
   const canCancel = isAdmin && !['fulfilled', 'canceled', 'refunded'].includes(order.status)
 
+  const setOrderCache = (updated: OrderDetail) => {
+    qc.setQueryData(['order', id], updated)
+    qc.invalidateQueries({ queryKey: ['orders'] })
+  }
+
   const doFulfill = async () => {
     if (!confirm(`Mark order ${order.number} as fulfilled?`)) return
     setActionLoading('fulfill')
     setActionError(null)
     try {
       const updated = await fulfillOrder(order.id)
-      setOrder(updated)
+      setOrderCache(updated)
     } catch (err: any) {
       setActionError(err?.response?.data?.detail ?? 'Failed to fulfill order.')
     } finally {
@@ -106,7 +106,7 @@ export function OrderDetailPage() {
     setActionError(null)
     try {
       const updated = await cancelOrder(order.id)
-      setOrder(updated)
+      setOrderCache(updated)
     } catch (err: any) {
       setActionError(err?.response?.data?.detail ?? 'Failed to cancel order.')
     } finally {

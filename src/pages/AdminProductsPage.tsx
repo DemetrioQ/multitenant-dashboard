@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { Package, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAdminProducts, getAdminTenants } from '../api/admin'
-import type { Product, ProductsResult } from '../api/products'
-import type { Tenant } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
 
 const PAGE_SIZE = 20
@@ -20,37 +19,31 @@ function Badge({ active }: { active: boolean }) {
 
 export function AdminProductsPage() {
   const { isSuperAdmin } = useAuth()
-
-  const [products, setProducts] = useState<Product[]>([])
-  const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [tenantMap, setTenantMap] = useState<Record<string, string>>({})
   const [filterTenant, setFilterTenant] = useState('')
 
+  const { data: tenantsData } = useQuery({
+    queryKey: ['admin', 'tenants', 'all'],
+    queryFn: () => getAdminTenants(1, 100),
+    enabled: isSuperAdmin,
+  })
+  const tenants = tenantsData?.items ?? []
+  const tenantMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const t of tenants) m[t.id] = t.name
+    return m
+  }, [tenants])
+
+  const { data: productsData, isLoading, error } = useQuery({
+    queryKey: ['admin', 'products', page],
+    queryFn: () => getAdminProducts(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+    enabled: isSuperAdmin,
+  })
+  const products = productsData?.items ?? []
+  const totalCount = productsData?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    getAdminTenants(1, 100)
-      .then((d) => {
-        setTenants(d.items)
-        const map: Record<string, string> = {}
-        for (const t of d.items) map[t.id] = t.name
-        setTenantMap(map)
-      })
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setLoading(true)
-    getAdminProducts(page, PAGE_SIZE)
-      .then((data: ProductsResult) => { setProducts(data.items); setTotalCount(data.totalCount) })
-      .catch(() => setError('Failed to load products.'))
-      .finally(() => setLoading(false))
-  }, [page])
+  const showSpinner = isLoading && !productsData
 
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
@@ -83,11 +76,11 @@ export function AdminProductsPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load products.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading...</p>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Users, ChevronLeft, ChevronRight, ExternalLink, MailCheck, MailX } from 'lucide-react'
 import { getCustomers, type CustomerSummary } from '../api/customers'
@@ -17,24 +17,15 @@ export function CustomersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const pageParam = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
 
-  const [customers, setCustomers] = useState<CustomerSummary[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['customers', pageParam],
+    queryFn: () => getCustomers(pageParam, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+  })
+  const customers: CustomerSummary[] = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    getCustomers(pageParam, PAGE_SIZE)
-      .then((data) => {
-        setCustomers(data.items)
-        setTotalCount(data.totalCount)
-      })
-      .catch(() => setError('Failed to load customers.'))
-      .finally(() => setLoading(false))
-  }, [pageParam])
+  const showSpinner = isLoading && !data
 
   const changePage = (next: number) => {
     const params = new URLSearchParams()
@@ -52,11 +43,11 @@ export function CustomersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load customers.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

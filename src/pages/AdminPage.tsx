@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate, Link } from 'react-router-dom'
 import { Building2, ShieldCheck, ChevronLeft, ChevronRight, Users, Package } from 'lucide-react'
-import { getAdminStats, getAdminTenants, type AdminStats, type TenantsResult } from '../api/admin'
+import { getAdminStats, getAdminTenants } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
-import type { Tenant } from '../api/tenants'
 
 const PAGE_SIZE = 20
 
@@ -35,27 +35,24 @@ function Badge({ active }: { active: boolean }) {
 
 export function AdminPage() {
   const { isSuperAdmin } = useAuth()
-
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
+  const { data: stats } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: getAdminStats,
+    enabled: isSuperAdmin,
+  })
+
+  const { data: tenantsData, isLoading, error } = useQuery({
+    queryKey: ['admin', 'tenants', page],
+    queryFn: () => getAdminTenants(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+    enabled: isSuperAdmin,
+  })
+  const tenants = tenantsData?.items ?? []
+  const totalCount = tenantsData?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    getAdminStats().then(setStats).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setLoading(true)
-    getAdminTenants(page, PAGE_SIZE)
-      .then((data: TenantsResult) => { setTenants(data.items); setTotalCount(data.totalCount) })
-      .catch(() => setError('Failed to load tenants.'))
-      .finally(() => setLoading(false))
-  }, [page])
+  const showSpinner = isLoading && !tenantsData
 
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
@@ -78,11 +75,11 @@ export function AdminPage() {
       )}
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenants.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

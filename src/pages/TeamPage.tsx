@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, ShieldCheck, ShieldOff, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
 import { getUsers, updateUserRole, deactivateUser, type User } from '../api/users'
 import { sendInvitation } from '../api/invitations'
@@ -33,30 +34,26 @@ function StatusBadge({ active }: { active: boolean }) {
 
 export function TeamPage() {
   const { userId, isAdmin } = useAuth()
-
-  const [users, setUsers] = useState<User[]>([])
-  const [totalCount, setTotalCount] = useState(0)
+  const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['team', page],
+    queryFn: () => getUsers(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+  })
+  const users: User[] = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const showSpinner = isLoading && !data
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['team'] })
+
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const [inviteSent, setInviteSent] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  const load = (p: number) => {
-    setLoading(true)
-    getUsers(p, PAGE_SIZE)
-      .then((data) => { setUsers(data.items); setTotalCount(data.totalCount) })
-      .catch(() => setError('Failed to load team members.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load(page) }, [page])
 
   const handleToggleRole = async (user: User) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin'
@@ -64,7 +61,7 @@ export function TeamPage() {
     setActionLoading(user.id)
     try {
       await updateUserRole(user.id, newRole)
-      load(page)
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to update role.')
     } finally {
@@ -77,7 +74,7 @@ export function TeamPage() {
     setActionLoading(user.id)
     try {
       await deactivateUser(user.id)
-      load(page)
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to deactivate user.')
     } finally {
@@ -146,11 +143,11 @@ export function TeamPage() {
       )}
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load team members.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

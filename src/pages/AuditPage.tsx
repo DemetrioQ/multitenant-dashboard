@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react'
-import { getAuditLog, type AuditEntry } from '../api/audit'
+import { getAuditLog } from '../api/audit'
 import { useAuth } from '../hooks/useAuth'
 
 const PAGE_SIZE = 20
@@ -35,22 +36,18 @@ function ActionBadge({ action }: { action: string }) {
 
 export function AuditPage() {
   const { isAdmin } = useAuth()
-
-  const [entries, setEntries] = useState<AuditEntry[]>([])
-  const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['audit', page],
+    queryFn: () => getAuditLog(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+    enabled: isAdmin,
+  })
+  const entries = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    setLoading(true)
-    getAuditLog(page, PAGE_SIZE)
-      .then((data) => { setEntries(data.items); setTotalCount(data.totalCount) })
-      .catch(() => setError('Failed to load audit log.'))
-      .finally(() => setLoading(false))
-  }, [page])
+  const showSpinner = isLoading && !data
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />
 
@@ -65,11 +62,11 @@ export function AuditPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load audit log.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

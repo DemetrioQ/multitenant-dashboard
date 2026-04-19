@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Mail, Pencil, Undo2, CheckCircle2, Circle } from 'lucide-react'
 import {
@@ -26,21 +27,14 @@ function isCustom(t: EmailTemplateSummary): boolean {
 
 export function EmailTemplatesPage() {
   const { isAdmin } = useAuth()
-  const [templates, setTemplates] = useState<EmailTemplateSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const qc = useQueryClient()
+  const { data: templates = [], isLoading, error } = useQuery({
+    queryKey: ['emailTemplates'],
+    queryFn: listEmailTemplates,
+    enabled: isAdmin,
+  })
+  const showSpinner = isLoading && templates.length === 0
   const [reverting, setReverting] = useState<string | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    setError(null)
-    listEmailTemplates()
-      .then(setTemplates)
-      .catch(() => setError('Failed to load email templates.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
 
   const handleRevert = async (t: EmailTemplateSummary) => {
     const label = TYPE_LABELS[t.type]?.title ?? t.type
@@ -48,7 +42,8 @@ export function EmailTemplatesPage() {
     setReverting(t.type)
     try {
       await revertEmailTemplate(t.type)
-      load()
+      qc.invalidateQueries({ queryKey: ['emailTemplates'] })
+      qc.invalidateQueries({ queryKey: ['emailTemplate', t.type] })
     } catch (err: any) {
       alert(err?.response?.data?.detail ?? 'Failed to revert template.')
     } finally {
@@ -83,11 +78,11 @@ export function EmailTemplatesPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load email templates.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="py-16 text-center text-gray-500 text-sm">Loading…</div>
         ) : templates.length === 0 ? (
           <div className="py-16 flex flex-col items-center gap-3">

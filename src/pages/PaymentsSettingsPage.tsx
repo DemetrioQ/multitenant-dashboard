@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, CreditCard, CheckCircle2, AlertTriangle, Loader2,
@@ -108,47 +109,45 @@ function Checklist({ status }: { status: PaymentsConnectStatus }) {
 
 export function PaymentsSettingsPage() {
   const { isAdmin } = useAuth()
+  const qc = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
   const returning = searchParams.get('onboarded') === '1'
 
-  const [status, setStatus] = useState<PaymentsConnectStatus | null>(null)
-  const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [justReturned] = useState(returning)
 
+  const { data: status, isLoading } = useQuery({
+    queryKey: ['payments', 'status'],
+    queryFn: getConnectStatus,
+    enabled: isAdmin,
+  })
+  const showSpinner = isLoading && !status
+
+  // One-time refresh when returning from Stripe onboarding.
   useEffect(() => {
+    if (!returning) return
     let cancelled = false
-    const run = async () => {
-      setLoading(true)
-      setError(null)
+    ;(async () => {
       try {
-        if (returning) {
-          try {
-            const refreshed = await refreshConnectStatus()
-            if (!cancelled) setStatus(refreshed)
-          } catch (err: any) {
-            if (err?.response?.status !== 404) throw err
-            // 404 — no onboarding started; fall through to GET /status
-            const s = await getConnectStatus()
-            if (!cancelled) setStatus(s)
-          }
+        const refreshed = await refreshConnectStatus()
+        if (!cancelled) qc.setQueryData(['payments', 'status'], refreshed)
+      } catch (err: any) {
+        if (err?.response?.status !== 404) {
+          if (!cancelled) setError('Failed to refresh payment status.')
+          return
+        }
+        // 404 — no onboarding started; refetch the cached status
+        qc.invalidateQueries({ queryKey: ['payments', 'status'] })
+      } finally {
+        if (!cancelled) {
           const params = new URLSearchParams(searchParams)
           params.delete('onboarded')
           setSearchParams(params, { replace: true })
-        } else {
-          const s = await getConnectStatus()
-          if (!cancelled) setStatus(s)
         }
-      } catch {
-        if (!cancelled) setError('Failed to load payment settings.')
-      } finally {
-        if (!cancelled) setLoading(false)
       }
-    }
-    run()
+    })()
     return () => { cancelled = true }
-  // Intentionally only on mount + when `returning` flips
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -189,7 +188,7 @@ export function PaymentsSettingsPage() {
         <p className="text-gray-400 mt-1 text-sm">Connect your Stripe account to accept card payments on your storefront.</p>
       </div>
 
-      {justReturned && !loading && (
+      {justReturned && !isLoading && (
         <div className="mb-4 flex items-start gap-2 text-sm bg-indigo-950/30 border border-indigo-900/50 rounded-lg px-4 py-3 text-indigo-200">
           <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>Welcome back from Stripe. We've refreshed your connection status.</span>
@@ -200,7 +199,7 @@ export function PaymentsSettingsPage() {
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
       )}
 
-      {loading ? (
+      {showSpinner ? (
         <div className="flex items-center gap-2 text-gray-500 text-sm py-10">
           <Loader2 className="w-4 h-4 animate-spin" /> Loading status…
         </div>

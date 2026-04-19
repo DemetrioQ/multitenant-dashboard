@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ShoppingCart, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
-import { getOrders, type OrderStatus, type OrderSummary } from '../api/orders'
+import { getOrders, type OrderStatus } from '../api/orders'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, formatDate } from '../utils/format'
 
@@ -37,28 +37,19 @@ export function OrdersPage() {
   const statusParam = (searchParams.get('status') ?? '') as OrderStatus | ''
   const pageParam = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
 
-  const [orders, setOrders] = useState<OrderSummary[]>([])
-  const [totalCount, setTotalCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    setLoading(true)
-    setError(null)
-    getOrders({
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['orders', pageParam, statusParam],
+    queryFn: () => getOrders({
       page: pageParam,
       pageSize: PAGE_SIZE,
       status: statusParam || undefined,
-    })
-      .then((data) => {
-        setOrders(data.items)
-        setTotalCount(data.totalCount)
-      })
-      .catch(() => setError('Failed to load orders.'))
-      .finally(() => setLoading(false))
-  }, [pageParam, statusParam])
+    }),
+    placeholderData: (prev) => prev,
+  })
+  const orders = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const showSpinner = isLoading && !data
 
   const changeStatus = (next: OrderStatus | '') => {
     const params = new URLSearchParams()
@@ -95,11 +86,11 @@ export function OrdersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load orders.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

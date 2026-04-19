@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { ClipboardList, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAdminAudit, getAdminTenants } from '../api/admin'
-import type { AuditEntry, AuditResult } from '../api/audit'
-import type { Tenant } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
 
 const PAGE_SIZE = 20
@@ -37,29 +36,26 @@ function ActionBadge({ action }: { action: string }) {
 
 export function AdminAuditPage() {
   const { isSuperAdmin } = useAuth()
-
-  const [entries, setEntries] = useState<AuditEntry[]>([])
-  const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const [tenants, setTenants] = useState<Tenant[]>([])
   const [filterTenant, setFilterTenant] = useState('')
 
+  const { data: tenantsData } = useQuery({
+    queryKey: ['admin', 'tenants', 'all'],
+    queryFn: () => getAdminTenants(1, 100),
+    enabled: isSuperAdmin,
+  })
+  const tenants = tenantsData?.items ?? []
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['admin', 'audit', page],
+    queryFn: () => getAdminAudit(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+    enabled: isSuperAdmin,
+  })
+  const entries = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  useEffect(() => {
-    getAdminTenants(1, 100).then((d) => setTenants(d.items)).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setLoading(true)
-    getAdminAudit(page, PAGE_SIZE)
-      .then((data: AuditResult) => { setEntries(data.items); setTotalCount(data.totalCount) })
-      .catch(() => setError('Failed to load audit log.'))
-      .finally(() => setLoading(false))
-  }, [page])
+  const showSpinner = isLoading && !data
 
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
@@ -92,11 +88,11 @@ export function AdminAuditPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load audit log.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading...</p>
           </div>
