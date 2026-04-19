@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getProducts, createProduct, updateProduct, deleteProduct, setProductStatus, type Product } from '../api/products'
 import { useAuth } from '../hooks/useAuth'
@@ -93,11 +94,22 @@ function ProductFormFields({
 
 export function ProductsPage({ initialCreate = false }: { initialCreate?: boolean }) {
   const { isAdmin } = useAuth()
-  const [products, setProducts] = useState<Product[]>([])
-  const [totalCount, setTotalCount] = useState(0)
+  const qc = useQueryClient()
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['products', page],
+    queryFn: () => getProducts(page, PAGE_SIZE),
+    placeholderData: (prev) => prev,
+  })
+
+  const products = data?.items ?? []
+  const totalCount = data?.totalCount ?? 0
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const hasCachedData = !!data
+  const showSpinner = isLoading && !hasCachedData
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['products'] })
 
   const [showCreate, setShowCreate] = useState(initialCreate)
   const [createForm, setCreateForm] = useState<ProductForm>(emptyForm)
@@ -108,21 +120,6 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
   const [editForm, setEditForm] = useState<ProductForm>(emptyForm)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-
-  const load = (p: number) => {
-    setLoading(true)
-    getProducts(p, PAGE_SIZE)
-      .then((data) => {
-        setProducts(data.items)
-        setTotalCount(data.totalCount)
-      })
-      .catch(() => setError('Failed to load products.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load(page) }, [page])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -138,7 +135,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       setShowCreate(false)
       setCreateForm(emptyForm)
       setPage(1)
-      load(1)
+      invalidate()
     } catch (err: any) {
       setCreateError(err.response?.data?.detail ?? 'Failed to create product.')
     } finally {
@@ -170,7 +167,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
         stock: parseInt(editForm.stock, 10),
       })
       setEditing(null)
-      load(page)
+      invalidate()
     } catch (err: any) {
       setEditError(err.response?.data?.detail ?? 'Failed to update product.')
     } finally {
@@ -183,7 +180,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
     if (!confirm(`${next ? 'Activate' : 'Deactivate'} "${product.name}"?`)) return
     try {
       await setProductStatus(product.id, next)
-      load(page)
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to update product status.')
     }
@@ -193,7 +190,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
     if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
     try {
       await deleteProduct(product.id)
-      load(page)
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to delete product.')
     }
@@ -218,11 +215,11 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load products.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

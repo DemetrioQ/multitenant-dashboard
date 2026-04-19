@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Users, ShieldCheck, ShieldOff } from 'lucide-react'
 import { getUsers, updateUserRole, deactivateUser, type User } from '../api/users'
 import { useAuth } from '../hooks/useAuth'
@@ -31,21 +32,20 @@ function StatusBadge({ active }: { active: boolean }) {
 export function UsersPage() {
   const { userId, isAdmin, isSuperAdmin } = useAuth()
   const canManage = isAdmin || isSuperAdmin
+  const qc = useQueryClient()
 
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => getUsers(),
+    staleTime: 10_000,
+  })
+  const users: User[] = data?.items ?? []
+  const hasCachedData = !!data
+  const showSpinner = isLoading && !hasCachedData
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['users'] })
+
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    getUsers()
-      .then((r) => setUsers(r.items))
-      .catch(() => setError('Failed to load users.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
 
   const handleToggleRole = async (user: User) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin'
@@ -53,7 +53,7 @@ export function UsersPage() {
     setActionLoading(user.id)
     try {
       await updateUserRole(user.id, newRole)
-      load()
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to update role.')
     } finally {
@@ -66,7 +66,7 @@ export function UsersPage() {
     setActionLoading(user.id)
     try {
       await deactivateUser(user.id)
-      load()
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to deactivate user.')
     } finally {
@@ -89,11 +89,11 @@ export function UsersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load users.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading…</p>
           </div>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { UserCircle, Camera, Lock } from 'lucide-react'
-import { getMe, updateMe, type UserProfile } from '../api/users'
+import { getMe, updateMe } from '../api/users'
 import { changePassword } from '../api/auth'
+import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { AvatarCropModal } from '../components/AvatarCropModal'
 
@@ -63,12 +65,18 @@ function validatePassword(f: PasswordForm): PasswordFieldErrors {
 }
 
 export function ProfilePage() {
-  const { setAvatarUrl: setGlobalAvatar, signOut } = useAuth()
+  const { signOut } = useAuth()
   const navigate = useNavigate()
-  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const qc = useQueryClient()
+
+  const { data: profile, isLoading } = useQuery({
+    queryKey: qk.userMe,
+    queryFn: getMe,
+  })
+  const loading = isLoading && !profile
+
   const [form, setForm] = useState<Form>({ firstName: '', lastName: '', avatarUrl: '', bio: '' })
   const [errors, setErrors] = useState<FormErrors>({})
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -79,21 +87,17 @@ export function ProfilePage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwSubmitError, setPwSubmitError] = useState<string | null>(null)
 
-  const load = () =>
-    getMe()
-      .then((p) => {
-        setProfile(p)
-        setForm({
-          firstName: p.firstName ?? '',
-          lastName: p.lastName ?? '',
-          avatarUrl: p.avatarUrl ?? '',
-          bio: p.bio ?? '',
-        })
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+  useEffect(() => {
+    if (!profile) return
+    setForm({
+      firstName: profile.firstName ?? '',
+      lastName: profile.lastName ?? '',
+      avatarUrl: profile.avatarUrl ?? '',
+      bio: profile.bio ?? '',
+    })
+  }, [profile])
 
-  useEffect(() => { load() }, [])
+  const invalidateProfile = () => qc.invalidateQueries({ queryKey: qk.userMe })
 
   const set = (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }))
@@ -116,8 +120,7 @@ export function ProfilePage() {
         bio: form.bio.trim() || null,
       })
       setSuccess(true)
-      setGlobalAvatar(form.avatarUrl.trim() || null)
-      load()
+      invalidateProfile()
     } catch (err: any) {
       setSubmitError(err.response?.data?.detail ?? 'Failed to save profile.')
     } finally {
@@ -170,8 +173,7 @@ export function ProfilePage() {
       bio: form.bio.trim() || null,
     })
     setForm((prev) => ({ ...prev, avatarUrl: url }))
-    setGlobalAvatar(url)
-    load()
+    invalidateProfile()
   }
 
   return (

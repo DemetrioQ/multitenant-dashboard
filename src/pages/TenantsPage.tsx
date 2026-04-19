@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { Plus, Building2, Pencil, Trash2 } from 'lucide-react'
 import {
@@ -21,9 +22,15 @@ function Badge({ active }: { active: boolean }) {
 }
 
 function AllTenantsView() {
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const qc = useQueryClient()
+  const { data: tenants = [], isLoading, error } = useQuery({
+    queryKey: ['tenants'],
+    queryFn: getTenants,
+  })
+  const hasCachedData = !!qc.getQueryData(['tenants'])
+  const showSpinner = isLoading && !hasCachedData
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['tenants'] })
 
   const [showCreate, setShowCreate] = useState(false)
   const [createName, setCreateName] = useState('')
@@ -36,16 +43,6 @@ function AllTenantsView() {
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
 
-  const load = () => {
-    setLoading(true)
-    getTenants()
-      .then(setTenants)
-      .catch(() => setError('Failed to load tenants.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateLoading(true)
@@ -55,7 +52,7 @@ function AllTenantsView() {
       setShowCreate(false)
       setCreateName('')
       setCreateSlug('')
-      load()
+      invalidate()
     } catch (err: any) {
       setCreateError(err.response?.data?.detail ?? 'Failed to create tenant.')
     } finally {
@@ -83,7 +80,7 @@ function AllTenantsView() {
         websiteUrl: editing.websiteUrl,
       })
       setEditing(null)
-      load()
+      invalidate()
     } catch (err: any) {
       setEditError(err.response?.data?.detail ?? 'Failed to update tenant.')
     } finally {
@@ -95,7 +92,7 @@ function AllTenantsView() {
     if (!confirm(`Deactivate "${tenant.name}"?`)) return
     try {
       await deactivateTenant(tenant.id)
-      load()
+      invalidate()
     } catch (err: any) {
       alert(err.response?.data?.detail ?? 'Failed to deactivate tenant.')
     }
@@ -120,11 +117,11 @@ function AllTenantsView() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenants.</div>
       )}
 
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {loading ? (
+        {showSpinner ? (
           <div className="flex items-center justify-center py-20">
             <p className="text-gray-500 text-sm">Loading...</p>
           </div>

@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Package, Users, Building2, ShieldCheck, Activity, ShoppingCart,
   UserCheck, DollarSign, TrendingUp, AlertTriangle, ArrowRight,
 } from 'lucide-react'
-import { getDashboard, type DashboardData, type RecentActivity, type TopProduct } from '../api/tenants'
+import { getDashboard, type RecentActivity, type TopProduct } from '../api/tenants'
 import { getAdminStats } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
 import { OnboardingChecklist } from '../components/OnboardingChecklist'
@@ -13,15 +13,11 @@ import { formatMoney } from '../utils/format'
 // ─── Super-admin dashboard ────────────────────────────────────────────────────
 
 function SuperAdminDashboard() {
-  const [stats, setStats] = useState<{ totalTenants: number; totalUsers: number; totalProducts: number } | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getAdminStats()
-      .then(setStats)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: getAdminStats,
+  })
+  const showSkeleton = isLoading && !stats
 
   const cards = stats
     ? [
@@ -40,7 +36,7 @@ function SuperAdminDashboard() {
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {loading
+        {showSkeleton
           ? [1, 2, 3].map((i) => (
               <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                 <div className="h-4 bg-gray-800 rounded w-24 mb-4" />
@@ -155,15 +151,11 @@ function TopProducts({ items, currency }: { items: TopProduct[]; currency: strin
 
 function TenantDashboard() {
   const { tenantSlug, tenantCurrency, isAdmin } = useAuth()
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getDashboard()
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, isLoading } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: getDashboard,
+  })
+  const showSkeleton = isLoading && !data
 
   const primaryStats = data
     ? [
@@ -199,7 +191,7 @@ function TenantDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {loading
+        {showSkeleton
           ? [1, 2, 3, 4].map((i) => (
               <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
                 <div className="h-4 bg-gray-800 rounded w-20 mb-4" />
@@ -221,7 +213,7 @@ function TenantDashboard() {
         }
       </div>
 
-      {!loading && data && !data.onboardingComplete && (
+      {!isLoading && data && !data.onboardingComplete && (
         <div className="mb-6">
           <OnboardingChecklist />
         </div>

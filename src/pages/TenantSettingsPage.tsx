@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Globe, Mail, Pencil, CreditCard, MailOpen, ChevronRight } from 'lucide-react'
-import { getTenantMe, updateTenant, type Tenant } from '../api/tenants'
+import { getTenantMe, updateTenant } from '../api/tenants'
+import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 
@@ -63,25 +65,18 @@ function validateEdit(f: EditForm): EditErrors {
 
 export function TenantSettingsPage() {
   const { isAdmin } = useAuth()
-  const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const qc = useQueryClient()
+  const { data: tenant, isLoading, error } = useQuery({
+    queryKey: qk.tenantMe,
+    queryFn: getTenantMe,
+  })
+  const showSpinner = isLoading && !tenant
 
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<EditForm>({ name: '', timezone: '', currency: '', supportEmail: '', websiteUrl: '' })
   const [editErrors, setEditErrors] = useState<EditErrors>({})
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-
-  const load = () => {
-    setLoading(true)
-    getTenantMe()
-      .then(setTenant)
-      .catch(() => setError('Failed to load tenant details.'))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load() }, [])
 
   const openEdit = () => {
     if (!tenant) return
@@ -119,7 +114,7 @@ export function TenantSettingsPage() {
         websiteUrl: editForm.websiteUrl.trim() || null,
       })
       setEditing(false)
-      load()
+      qc.invalidateQueries({ queryKey: qk.tenantMe })
     } catch (err: any) {
       const apiErrors: Record<string, string[]> | undefined = err.response?.data?.errors
       if (apiErrors) {
@@ -158,10 +153,10 @@ export function TenantSettingsPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenant details.</div>
       )}
 
-      {loading ? (
+      {showSpinner ? (
         <div className="flex items-center justify-center py-20">
           <p className="text-gray-500 text-sm">Loading...</p>
         </div>
