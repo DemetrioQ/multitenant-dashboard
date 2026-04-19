@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Globe, Mail, Pencil } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Globe, Mail, Pencil, CreditCard, MailOpen, ChevronRight } from 'lucide-react'
 import { getTenantMe, updateTenant, type Tenant } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
@@ -198,6 +199,40 @@ export function TenantSettingsPage() {
           ))}
         </div>
       ) : null}
+
+      {isAdmin && tenant && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">Admin settings</p>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 overflow-hidden">
+            <Link
+              to="/settings/payments"
+              className="flex items-center gap-4 px-6 py-4 hover:bg-gray-800/40 transition-colors group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-4 h-4 text-indigo-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">Payments</p>
+                <p className="text-xs text-gray-500">Connect a Stripe account to accept card payments on your storefront.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
+            </Link>
+            <Link
+              to="/settings/emails"
+              className="flex items-center gap-4 px-6 py-4 hover:bg-gray-800/40 transition-colors group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                <MailOpen className="w-4 h-4 text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">Email templates</p>
+                <p className="text-xs text-gray-500">Customise the emails your storefront sends to customers.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {editing && (
         <Modal title="Edit tenant" onClose={() => setEditing(false)}>

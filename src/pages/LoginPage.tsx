@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { ExternalLink, Store } from 'lucide-react'
 import { login, register, resendVerification } from '../api/auth'
 import { createTenant } from '../api/tenants'
+import { getStores, type StoreEntry } from '../api/stores'
 import { useAuth } from '../hooks/useAuth'
 import { useRateLimit, formatCountdown, retryAfterSecs } from '../hooks/useRateLimit'
 
@@ -33,6 +35,49 @@ function fieldClass(error: string) {
 function FieldError({ msg }: { msg: string }) {
   if (!msg) return null
   return <p className="text-red-400 text-xs mt-1">{msg}</p>
+}
+
+
+function LiveStoresPanel() {
+  const [stores, setStores] = useState<StoreEntry[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getStores(1, 6)
+      .then((res) => { if (!cancelled) setStores(res.items) })
+      .catch(() => { if (!cancelled) setStores([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  if (!stores || stores.length === 0) return null
+
+  return (
+    <div className="mt-6 bg-gray-900/60 border border-gray-800 rounded-2xl p-6">
+      <div className="flex items-center gap-2 mb-3">
+        <Store className="w-3.5 h-3.5 text-gray-500" />
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Live demo stores</p>
+      </div>
+      <p className="text-xs text-gray-500 mb-4">Browse without signing in.</p>
+      <ul className="space-y-1.5">
+        {stores.map((s) => (
+          <li key={s.slug}>
+            <a
+              href={s.storeUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center justify-between gap-3 px-3 py-2 -mx-3 rounded-lg hover:bg-gray-800/60 transition-colors"
+            >
+              <div className="min-w-0">
+                <p className="text-sm text-white truncate">{s.name}</p>
+                <p className="text-xs text-gray-500 truncate">{s.slug}</p>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-gray-600 group-hover:text-indigo-400 flex-shrink-0" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 
@@ -440,6 +485,8 @@ export function LoginPage() {
             </form>
           )}
         </div>
+
+        {mode === 'signin' && !unverified && !registered && <LiveStoresPanel />}
       </div>
     </div>
   )

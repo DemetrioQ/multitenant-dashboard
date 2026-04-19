@@ -2,11 +2,12 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, Users, LogOut, ShieldCheck,
   Settings, UserCircle, ClipboardList, Building2,
+  ShoppingCart, UserCheck, ExternalLink,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 export function Layout() {
-  const { tenantName, tenantSlug, avatarUrl, isAdmin, isSuperAdmin, signOut } = useAuth()
+  const { tenantName, tenantSlug, storeUrl, avatarUrl, isAdmin, isSuperAdmin, signOut } = useAuth()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -30,7 +31,21 @@ export function Layout() {
               <ShieldCheck className="w-3 h-3" /> Super Admin
             </span>
           ) : (tenantName || tenantSlug) ? (
-            <p className="text-xs text-gray-500 mt-0.5 truncate">{tenantName ?? tenantSlug}</p>
+            <>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">{tenantName ?? tenantSlug}</p>
+              {storeUrl && (
+                <a
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={storeUrl}
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors max-w-full"
+                >
+                  <span className="truncate">{storeUrl.replace(/^https?:\/\//, '')}</span>
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+              )}
+            </>
           ) : null}
         </div>
 
@@ -56,6 +71,12 @@ export function Layout() {
             <>
               <NavLink to="/products" className={navClass}>
                 <Package className="w-4 h-4 flex-shrink-0" /> Products
+              </NavLink>
+              <NavLink to="/orders" className={navClass}>
+                <ShoppingCart className="w-4 h-4 flex-shrink-0" /> Orders
+              </NavLink>
+              <NavLink to="/customers" className={navClass}>
+                <UserCheck className="w-4 h-4 flex-shrink-0" /> Customers
               </NavLink>
               <NavLink to="/team" className={navClass}>
                 <Users className="w-4 h-4 flex-shrink-0" /> Team

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { UserCircle, Camera } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { UserCircle, Camera, Lock } from 'lucide-react'
 import { getMe, updateMe, type UserProfile } from '../api/users'
+import { changePassword } from '../api/auth'
 import { useAuth } from '../hooks/useAuth'
 import { AvatarCropModal } from '../components/AvatarCropModal'
 
@@ -33,8 +35,36 @@ function validate(f: Form): FormErrors {
   return errors
 }
 
+interface PasswordForm {
+  currentPassword: string
+  newPassword: string
+  confirmNewPassword: string
+}
+
+type PasswordFieldErrors = Partial<Record<keyof PasswordForm, string>>
+
+const emptyPasswordForm: PasswordForm = {
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: '',
+}
+
+function validatePassword(f: PasswordForm): PasswordFieldErrors {
+  const errors: PasswordFieldErrors = {}
+  if (!f.currentPassword) errors.currentPassword = 'Required.'
+  if (f.newPassword.length > 0 && f.newPassword.length < 8) errors.newPassword = 'Must be at least 8 characters.'
+  if (f.newPassword && f.currentPassword && f.newPassword === f.currentPassword) {
+    errors.newPassword = 'Must be different from current password.'
+  }
+  if (f.confirmNewPassword && f.confirmNewPassword !== f.newPassword) {
+    errors.confirmNewPassword = 'Passwords do not match.'
+  }
+  return errors
+}
+
 export function ProfilePage() {
-  const { setAvatarUrl: setGlobalAvatar } = useAuth()
+  const { setAvatarUrl: setGlobalAvatar, signOut } = useAuth()
+  const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [form, setForm] = useState<Form>({ firstName: '', lastName: '', avatarUrl: '', bio: '' })
   const [errors, setErrors] = useState<FormErrors>({})
@@ -43,6 +73,11 @@ export function ProfilePage() {
   const [success, setSuccess] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [showAvatarModal, setShowAvatarModal] = useState(false)
+
+  const [pwForm, setPwForm] = useState<PasswordForm>(emptyPasswordForm)
+  const [pwErrors, setPwErrors] = useState<PasswordFieldErrors>({})
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwSubmitError, setPwSubmitError] = useState<string | null>(null)
 
   const load = () =>
     getMe()
@@ -87,6 +122,43 @@ export function ProfilePage() {
       setSubmitError(err.response?.data?.detail ?? 'Failed to save profile.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const setPw = (key: keyof PasswordForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPwForm((prev) => ({ ...prev, [key]: e.target.value }))
+    if (pwErrors[key]) setPwErrors((prev) => ({ ...prev, [key]: undefined }))
+    if (pwSubmitError) setPwSubmitError(null)
+  }
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const fieldErrors = validatePassword(pwForm)
+    if (Object.keys(fieldErrors).length > 0) { setPwErrors(fieldErrors); return }
+    setPwSaving(true)
+    setPwSubmitError(null)
+    try {
+      await changePassword(pwForm.currentPassword, pwForm.newPassword)
+      navigate('/login', {
+        replace: true,
+        state: { flash: 'Password changed. Please sign in again.' },
+      })
+      signOut()
+    } catch (err: any) {
+      const status = err.response?.status
+      const detail: string = err.response?.data?.detail ?? 'Failed to change password.'
+      if (status === 400) {
+        const lower = detail.toLowerCase()
+        if (lower.includes('current')) {
+          setPwErrors({ currentPassword: detail })
+        } else {
+          setPwErrors({ newPassword: detail })
+        }
+      } else {
+        setPwSubmitError(detail)
+      }
+    } finally {
+      setPwSaving(false)
     }
   }
 
@@ -194,6 +266,66 @@ export function ProfilePage() {
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
               >
                 {saving ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-10 mb-4 flex items-center gap-3">
+            <Lock className="w-5 h-5 text-gray-400" />
+            <h2 className="text-lg font-semibold text-white">Change password</h2>
+          </div>
+          <p className="text-gray-400 text-sm mb-4">
+            After changing your password, you'll be signed out of all sessions.
+          </p>
+
+          <form onSubmit={handleChangePassword} noValidate>
+            <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
+              <div className="px-6 py-5 space-y-1.5">
+                <label className="block text-sm font-medium text-gray-300">Current password</label>
+                <input
+                  type="password"
+                  value={pwForm.currentPassword}
+                  onChange={setPw('currentPassword')}
+                  autoComplete="current-password"
+                  className={inputClass(pwErrors.currentPassword)}
+                />
+                <FieldError msg={pwErrors.currentPassword} />
+              </div>
+              <div className="px-6 py-5 space-y-1.5">
+                <label className="block text-sm font-medium text-gray-300">New password</label>
+                <input
+                  type="password"
+                  value={pwForm.newPassword}
+                  onChange={setPw('newPassword')}
+                  autoComplete="new-password"
+                  className={inputClass(pwErrors.newPassword)}
+                />
+                <FieldError msg={pwErrors.newPassword} />
+              </div>
+              <div className="px-6 py-5 space-y-1.5">
+                <label className="block text-sm font-medium text-gray-300">Confirm new password</label>
+                <input
+                  type="password"
+                  value={pwForm.confirmNewPassword}
+                  onChange={setPw('confirmNewPassword')}
+                  autoComplete="new-password"
+                  className={inputClass(pwErrors.confirmNewPassword)}
+                />
+                <FieldError msg={pwErrors.confirmNewPassword} />
+              </div>
+            </div>
+
+            {pwSubmitError && (
+              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{pwSubmitError}</p>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="submit"
+                disabled={pwSaving}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
+              >
+                {pwSaving ? 'Changing...' : 'Change password'}
               </button>
             </div>
           </form>

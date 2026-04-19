@@ -31,6 +31,8 @@ interface AuthState {
   userId: string | null
   tenantName: string | null
   tenantSlug: string | null
+  tenantCurrency: string | null
+  storeUrl: string | null
   role: string | null
   avatarUrl: string | null
   isAuthenticated: boolean
@@ -52,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     tenantName: null,
     tenantSlug: localStorage.getItem('tenantSlug'),
+    tenantCurrency: null,
+    storeUrl: null,
     role: null,
     avatarUrl: null,
     isAuthenticated: false,
@@ -70,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...prev,
           tenantName: tenant.name,
           tenantSlug: tenant.slug,
+          tenantCurrency: tenant.currency,
+          storeUrl: tenant.storeUrl,
           avatarUrl: profile.avatarUrl,
         }))
       })
@@ -98,6 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId: decodeUserId(data.jwtToken),
           tenantName: null,
           tenantSlug: localStorage.getItem('tenantSlug'),
+          tenantCurrency: null,
+          storeUrl: null,
           role: decodeRole(data.jwtToken),
           avatarUrl: null,
           isAuthenticated: true,
@@ -122,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       userId: decodeUserId(token),
       tenantName: null,
       tenantSlug: tenantSlug ?? localStorage.getItem('tenantSlug'),
+      tenantCurrency: null,
+      storeUrl: null,
       role: decodeRole(token),
       avatarUrl: null,
       isAuthenticated: true,
@@ -136,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     sessionStorage.removeItem('token')
     localStorage.removeItem('tenantSlug')
-    setState({ token: null, userId: null, tenantName: null, tenantSlug: null, role: null, avatarUrl: null, isAuthenticated: false })
+    setState({ token: null, userId: null, tenantName: null, tenantSlug: null, tenantCurrency: null, storeUrl: null, role: null, avatarUrl: null, isAuthenticated: false })
   }
 
   const setAvatarUrl = (url: string | null) => {

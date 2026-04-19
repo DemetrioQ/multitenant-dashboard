@@ -35,3 +35,6 @@ export const resetPassword = (token: string, newPassword: string) =>
 
 export const resendVerification = (slug: string, email: string) =>
   apiClient.post('/api/v1/auth/resend-verification', { slug, email })
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  apiClient.post('/api/v1/auth/change-password', { currentPassword, newPassword })

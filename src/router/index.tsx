@@ -17,6 +17,13 @@ import { AdminTenantDetailPage } from '../pages/AdminTenantDetailPage'
 import { AdminAuditPage } from '../pages/AdminAuditPage'
 import { AdminProductsPage } from '../pages/AdminProductsPage'
 import { TenantsPage } from '../pages/TenantsPage'
+import { OrdersPage } from '../pages/OrdersPage'
+import { OrderDetailPage } from '../pages/OrderDetailPage'
+import { CustomersPage } from '../pages/CustomersPage'
+import { CustomerDetailPage } from '../pages/CustomerDetailPage'
+import { PaymentsSettingsPage } from '../pages/PaymentsSettingsPage'
+import { EmailTemplatesPage } from '../pages/EmailTemplatesPage'
+import { EmailTemplateEditorPage } from '../pages/EmailTemplateEditorPage'
 
 function ProtectedLayout() {
   const { isAuthenticated } = useAuth()
@@ -40,9 +47,16 @@ export function AppRouter() {
           <Route path="/dashboard"              element={<DashboardPage />} />
           <Route path="/products"               element={<ProductsPage />} />
           <Route path="/products/new"           element={<ProductsPage initialCreate />} />
+          <Route path="/orders"                 element={<OrdersPage />} />
+          <Route path="/orders/:id"             element={<OrderDetailPage />} />
+          <Route path="/customers"              element={<CustomersPage />} />
+          <Route path="/customers/:id"          element={<CustomerDetailPage />} />
           <Route path="/team"                   element={<TeamPage />} />
           <Route path="/settings"               element={<TenantSettingsPage />} />
           <Route path="/settings/profile"       element={<ProfilePage />} />
+          <Route path="/settings/payments"      element={<PaymentsSettingsPage />} />
+          <Route path="/settings/emails"        element={<EmailTemplatesPage />} />
+          <Route path="/settings/emails/:type"  element={<EmailTemplateEditorPage />} />
           <Route path="/audit"                  element={<AuditPage />} />
           <Route path="/admin"                  element={<AdminPage />} />
           <Route path="/admin/tenants/:id"      element={<AdminTenantDetailPage />} />

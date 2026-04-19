@@ -10,6 +10,7 @@ export interface Tenant {
   currency: string
   supportEmail: string | null
   websiteUrl: string | null
+  storeUrl: string | null
 }
 
 export const getTenants = () =>
@@ -46,11 +47,25 @@ export interface RecentActivity {
   createdAt: string
 }
 
+export interface TopProduct {
+  productId: string
+  name: string
+  slug: string
+  unitsSold: number
+  revenue: number
+}
+
 export interface DashboardData {
   userCount: number
   activeUserCount: number
   productCount: number
   activeProductCount: number
+  customerCount: number
+  pendingOrderCount: number
+  paidOrderCount: number
+  totalRevenue: number
+  averageOrderValue: number
+  topProducts: TopProduct[]
   onboardingComplete: boolean
   recentActivity: RecentActivity[]
 }
