@@ -1,73 +1,78 @@
-# React + TypeScript + Vite
+# saas-dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend for a multi-tenant SaaS platform. Talks to [`saas-api`](../saas-api) (ASP.NET Core 9, Clean Architecture, MediatR, EF Core).
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **TypeScript** + **Vite**
+- **Tailwind v4** (`@tailwindcss/vite`)
+- **TanStack Query** with `localStorage` persistence — stale-while-revalidate caching
+- **React Router v7**
+- **UploadThing** for avatar uploads (dev handler is wired into the Vite middleware)
 
-## React Compiler
+## Quick start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # starts Vite on http://localhost:5173
+npm run build    # tsc -b && vite build
+npm run lint
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Environment variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env` at the project root:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+# Backend the Vite dev proxy forwards /api/v1/* to (server-side only)
+VITE_API_URL=https://localhost:7079
+
+# Set only when frontend and API are deployed on different domains in production
+# VITE_API_URL_BROWSER=https://api.example.com
+
+# UploadThing (avatar uploads)
+UPLOADTHING_TOKEN=...
+UPLOADTHING_SECRET=...
+```
+
+## Architecture
+
+### Auth
+- **Access token**: `sessionStorage` (cleared on tab close)
+- **Refresh token**: HttpOnly cookie (`refreshToken`), `SameSite=Strict`, `Secure` in prod
+- **Tenant slug** (display only): `localStorage`
+- No `X-Tenant-Id` header — the tenant is resolved on the backend from JWT claims
+- 401 responses trigger a silent refresh via `src/api/client.ts` interceptor
+
+### Roles
+| Role | Description |
+|---|---|
+| `member` | Regular tenant user; read-only on Team page |
+| `admin` | Tenant admin; can edit tenant + manage users |
+| `super-admin` | Platform-level account; not scoped to a tenant; sees everything |
+
+### Caching
+All list/detail data is fetched through TanStack Query with a `localStorage` persister (see `src/lib/queryClient.ts`):
+
+- On mount: cached data renders **immediately** — no loading flash
+- Every mount also kicks off a background refetch (`staleTime: 0`)
+- When the response returns, the UI silently updates if anything changed
+- Cache is cleared on `signIn` / `signOut` so a different user on the same browser never sees stale data
+
+### Vite dev proxy
+`/api/v1/*` → `VITE_API_URL` (with self-signed certs allowed). `/api/uploadthing` is handled in-process by the Vite plugin in `vite.config.ts`.
+
+## Project layout
+
+```
+src/
+  api/           # axios client + per-resource API modules
+  components/    # Layout, Modal, AvatarCropModal, OnboardingChecklist…
+  contexts/      # AuthContext (token + role + tenant/profile via useQuery)
+  hooks/         # useAuth
+  lib/           # queryClient, queryKeys
+  pages/         # one file per route
+  router/        # ProtectedLayout + public routes
+  uploadthing/   # UploadThing router (used by dev middleware)
+  utils/         # formatMoney, formatDate, …
 ```
