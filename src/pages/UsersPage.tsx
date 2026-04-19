@@ -37,7 +37,6 @@ export function UsersPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: () => getUsers(),
-    staleTime: 10_000,
   })
   const users: User[] = data?.items ?? []
   const hasCachedData = !!data

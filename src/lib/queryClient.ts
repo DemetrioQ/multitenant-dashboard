@@ -6,7 +6,7 @@ export const PERSIST_KEY = 'sd-query-cache'
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000,
+      staleTime: 0,
       gcTime: 1000 * 60 * 60 * 24,
       refetchOnWindowFocus: false,
       retry: 1,
