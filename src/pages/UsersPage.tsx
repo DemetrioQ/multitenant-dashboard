@@ -40,7 +40,7 @@ export function UsersPage() {
   const load = () => {
     setLoading(true)
     getUsers()
-      .then(setUsers)
+      .then((r) => setUsers(r.items))
       .catch(() => setError('Failed to load users.'))
       .finally(() => setLoading(false))
   }

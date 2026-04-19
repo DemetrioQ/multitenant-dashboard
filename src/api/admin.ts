@@ -1,8 +1,8 @@
 import { apiClient } from './client'
 import type { User } from './users'
 import type { Tenant } from './tenants'
-import type { AuditEntry, AuditResult } from './audit'
-import type { Product, ProductsResult } from './products'
+import type { AuditResult } from './audit'
+import type { ProductsResult } from './products'
 
 export interface AdminStats {
   totalTenants: number
