@@ -115,7 +115,7 @@ export function PaymentsSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [justReturned, setJustReturned] = useState(returning)
+  const [justReturned] = useState(returning)
 
   useEffect(() => {
     let cancelled = false
