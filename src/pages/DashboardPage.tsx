@@ -28,7 +28,7 @@ function SuperAdminDashboard() {
     : []
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
         <p className="text-amber-400/80 mt-1 text-sm flex items-center gap-2">
@@ -167,7 +167,7 @@ function TenantDashboard() {
     : []
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">Dashboard</h1>

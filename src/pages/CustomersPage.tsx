@@ -34,7 +34,7 @@ export function CustomersPage() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-white">Customers</h1>
         <p className="text-gray-400 mt-1 text-sm">
@@ -57,7 +57,7 @@ export function CustomersPage() {
             <p className="text-gray-500 text-sm">No customers yet.</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
@@ -97,6 +97,7 @@ export function CustomersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

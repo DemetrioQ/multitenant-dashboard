@@ -53,7 +53,7 @@ export function EmailTemplatesPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-8 max-w-4xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-4xl mx-auto">
         <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to settings
         </Link>
@@ -65,7 +65,7 @@ export function EmailTemplatesPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-4xl mx-auto">
       <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to settings
       </Link>

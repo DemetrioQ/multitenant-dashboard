@@ -177,7 +177,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-2xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3">
           <UserCircle className="w-5 h-5 text-gray-400" />

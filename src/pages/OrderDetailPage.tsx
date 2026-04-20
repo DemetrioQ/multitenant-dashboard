@@ -59,7 +59,7 @@ export function OrderDetailPage() {
 
   if (showSpinner) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <p className="text-gray-500 text-sm">Loading…</p>
       </div>
     )
@@ -67,7 +67,7 @@ export function OrderDetailPage() {
 
   if (error || !order) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <Link to="/orders" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to orders
         </Link>
@@ -123,7 +123,7 @@ export function OrderDetailPage() {
   ]
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <Link to="/orders" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to orders
       </Link>

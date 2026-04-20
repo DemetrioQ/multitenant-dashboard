@@ -167,7 +167,7 @@ export function EmailTemplateEditorPage() {
 
   if (!isAdmin) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <Link to="/settings/emails" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to templates
         </Link>
@@ -180,7 +180,7 @@ export function EmailTemplateEditorPage() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <p className="text-gray-500 text-sm">Loading…</p>
       </div>
     )
@@ -188,7 +188,7 @@ export function EmailTemplateEditorPage() {
 
   if (loadError || !detail || !isValidType(type)) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <Link to="/settings/emails" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to templates
         </Link>
@@ -202,7 +202,7 @@ export function EmailTemplateEditorPage() {
   const dirty = subject !== detail.subject || bodyHtml !== detail.bodyHtml || enabled !== detail.enabled
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <Link to="/settings/emails" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to templates
       </Link>

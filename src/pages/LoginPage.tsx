@@ -301,7 +301,7 @@ export function LoginPage() {
           </button>
         </div>}
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 sm:p-8">
           {flash && (
             <p className="mb-5 text-emerald-400 text-sm bg-emerald-950/40 border border-emerald-900/50 rounded-lg px-4 py-3">{flash}</p>
           )}
@@ -346,7 +346,13 @@ export function LoginPage() {
                   className={fieldClass('')}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="flex flex-col-reverse gap-1.5">
+                <input
+                  type="password" required value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={fieldClass('')}
+                />
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-gray-300">Password</label>
                   <Link
@@ -356,12 +362,6 @@ export function LoginPage() {
                     Forgot password?
                   </Link>
                 </div>
-                <input
-                  type="password" required value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className={fieldClass('')}
-                />
               </div>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input

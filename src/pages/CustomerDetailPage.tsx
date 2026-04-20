@@ -41,7 +41,7 @@ export function CustomerDetailPage() {
 
   if (showSpinner) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <p className="text-gray-500 text-sm">Loading…</p>
       </div>
     )
@@ -49,7 +49,7 @@ export function CustomerDetailPage() {
 
   if (error || !customer) {
     return (
-      <div className="p-8 max-w-5xl mx-auto">
+      <div className="p-4 sm:p-8 max-w-5xl mx-auto">
         <Link to="/customers" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to customers
         </Link>
@@ -61,7 +61,7 @@ export function CustomerDetailPage() {
   }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-5xl mx-auto">
       <Link to="/customers" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to customers
       </Link>
@@ -114,7 +114,7 @@ export function CustomerDetailPage() {
             <p className="text-gray-500 text-sm">No orders yet.</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order</th>
@@ -141,6 +141,7 @@ export function CustomerDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

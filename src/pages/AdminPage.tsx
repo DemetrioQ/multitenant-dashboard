@@ -57,7 +57,7 @@ export function AdminPage() {
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3">
           <ShieldCheck className="w-5 h-5 text-amber-400" />
@@ -89,7 +89,7 @@ export function AdminPage() {
             <p className="text-gray-500 text-sm">No tenants found.</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
@@ -118,6 +118,7 @@ export function AdminPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

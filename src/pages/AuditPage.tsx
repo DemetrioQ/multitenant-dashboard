@@ -52,7 +52,7 @@ export function AuditPage() {
   if (!isAdmin) return <Navigate to="/dashboard" replace />
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <ClipboardList className="w-5 h-5 text-gray-400" />
@@ -76,7 +76,7 @@ export function AuditPage() {
             <p className="text-gray-500 text-sm">No audit events yet.</p>
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-800 bg-gray-800/40">
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
@@ -100,6 +100,7 @@ export function AuditPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
