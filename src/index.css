@@ -21,6 +21,15 @@
 *, *::before, *::after {
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Interactive elements: kill the iOS touch-callout (which can eat taps) and
+   skip the 300ms click delay so buttons fire reliably on mobile. */
+button, a, [role="button"], label,
+input[type="submit"], input[type="button"], input[type="reset"], input[type="checkbox"], input[type="radio"] {
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 p, li, td, th, code, pre, h1, h2, h3, h4, h5, h6, label,
