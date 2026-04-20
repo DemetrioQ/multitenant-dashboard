@@ -1,6 +1,6 @@
 # saas-dashboard
 
-Frontend for a multi-tenant SaaS platform. Talks to [`saas-api`](../saas-api) (ASP.NET Core 9, Clean Architecture, MediatR, EF Core).
+Frontend for a multi-tenant SaaS platform. Talks to [`saas-api`](https://github.com/DemetrioQ/dotnet-multitenant-api) (ASP.NET Core 9, Clean Architecture, MediatR, EF Core).
 
 ## Stack
 
