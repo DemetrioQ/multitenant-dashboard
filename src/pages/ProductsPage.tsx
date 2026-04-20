@@ -4,6 +4,7 @@ import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight } from 
 import { getProducts, createProduct, updateProduct, deleteProduct, setProductStatus, type Product } from '../api/products'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
+import { formatMoney, currencySymbol } from '../utils/format'
 
 const PAGE_SIZE = 10
 
@@ -12,9 +13,30 @@ interface ProductForm {
   description: string
   price: string
   stock: string
+  imageUrl: string
 }
 
-const emptyForm: ProductForm = { name: '', description: '', price: '', stock: '' }
+const emptyForm: ProductForm = { name: '', description: '', price: '', stock: '', imageUrl: '' }
+
+function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 'md' }) {
+  const dim = size === 'md' ? 'w-14 h-14' : 'w-10 h-10'
+  const icon = size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
+  if (!src) {
+    return (
+      <div className={`${dim} rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0`}>
+        <Package className={`${icon} text-gray-600`} />
+      </div>
+    )
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+      className={`${dim} rounded-lg object-cover bg-gray-800 border border-gray-700 flex-shrink-0`}
+    />
+  )
+}
 
 function Badge({ active }: { active: boolean }) {
   return (
@@ -32,10 +54,13 @@ function Badge({ active }: { active: boolean }) {
 function ProductFormFields({
   form,
   onChange,
+  symbol,
 }: {
   form: ProductForm
   onChange: (f: ProductForm) => void
+  symbol: string
 }) {
+  const pricePadding = symbol.length > 1 ? 'pl-10' : 'pl-8'
   return (
     <>
       <div className="space-y-1.5">
@@ -60,19 +85,37 @@ function ProductFormFields({
           className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
         />
       </div>
+      <div className="space-y-1.5">
+        <label className="block text-sm font-medium text-gray-300">
+          Image URL <span className="text-gray-500 font-normal">(optional)</span>
+        </label>
+        <div className="flex items-center gap-3">
+          <ProductThumb src={form.imageUrl.trim() || null} size="md" />
+          <input
+            type="url"
+            value={form.imageUrl}
+            onChange={(e) => onChange({ ...form, imageUrl: e.target.value })}
+            placeholder="https://example.com/photo.jpg"
+            className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-gray-300">Price</label>
-          <input
-            type="number"
-            required
-            min="0"
-            step="0.01"
-            value={form.price}
-            onChange={(e) => onChange({ ...form, price: e.target.value })}
-            placeholder="9.99"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none select-none">{symbol}</span>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.01"
+              value={form.price}
+              onChange={(e) => onChange({ ...form, price: e.target.value })}
+              placeholder="9.99"
+              className={`w-full bg-gray-800 border border-gray-700 rounded-lg ${pricePadding} pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+            />
+          </div>
         </div>
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-gray-300">Stock</label>
@@ -93,7 +136,8 @@ function ProductFormFields({
 }
 
 export function ProductsPage({ initialCreate = false }: { initialCreate?: boolean }) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, tenantCurrency } = useAuth()
+  const symbol = currencySymbol(tenantCurrency)
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
 
@@ -131,6 +175,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
         description: createForm.description,
         price: parseFloat(createForm.price),
         stock: parseInt(createForm.stock, 10),
+        imageUrl: createForm.imageUrl.trim() || null,
       })
       setShowCreate(false)
       setCreateForm(emptyForm)
@@ -150,6 +195,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       description: product.description,
       price: product.price.toString(),
       stock: product.stock.toString(),
+      imageUrl: product.imageUrl ?? '',
     })
     setEditError(null)
   }
@@ -165,6 +211,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
         description: editForm.description,
         price: parseFloat(editForm.price),
         stock: parseInt(editForm.stock, 10),
+        imageUrl: editForm.imageUrl.trim() || null,
       })
       setEditing(null)
       invalidate()
@@ -218,76 +265,137 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load products.</div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {showSpinner ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Loading…</p>
-          </div>
-        ) : products.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Package className="w-8 h-8 text-gray-700" />
-            <p className="text-gray-500 text-sm">No products yet. Add your first product.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-800/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {products.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-white">{p.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{p.description}</td>
-                  <td className="px-6 py-4 text-sm text-white font-mono">${p.price.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
-                  <td className="px-6 py-4"><Badge active={p.isActive} /></td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(p)}
-                        className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleToggleStatus(p)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            p.isActive
-                              ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
-                              : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
-                          }`}
-                          title={p.isActive ? 'Deactivate' : 'Activate'}
-                        >
-                          <Power className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {isAdmin && p.isActive && (
-                        <button
-                          onClick={() => handleDelete(p)}
-                          className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
+      {showSpinner ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
+          <p className="text-gray-500 text-sm">Loading…</p>
+        </div>
+      ) : products.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+          <Package className="w-8 h-8 text-gray-700" />
+          <p className="text-gray-500 text-sm">No products yet. Add your first product.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-800/40">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {products.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-white">
+                      <div className="flex items-center gap-3">
+                        <ProductThumb src={p.imageUrl} />
+                        <span className="truncate">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{p.description}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono whitespace-nowrap">{formatMoney(p.price, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
+                    <td className="px-6 py-4"><Badge active={p.isActive} /></td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleToggleStatus(p)}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              p.isActive
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
+                                : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
+                            }`}
+                            title={p.isActive ? 'Deactivate' : 'Activate'}
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {isAdmin && p.isActive && (
+                          <button
+                            onClick={() => handleDelete(p)}
+                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {products.map((p) => (
+              <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <ProductThumb src={p.imageUrl} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                      <Badge active={p.isActive} />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.description}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs">
+                      <span className="text-white font-mono">{formatMoney(p.price, tenantCurrency)}</span>
+                      <span className="text-gray-500">Stock: {p.stock}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-800">
+                  <button
+                    onClick={() => openEdit(p)}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleToggleStatus(p)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        p.isActive
+                          ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
+                          : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
+                      }`}
+                      title={p.isActive ? 'Deactivate' : 'Activate'}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                  )}
+                  {isAdmin && p.isActive && (
+                    <button
+                      onClick={() => handleDelete(p)}
+                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
@@ -314,7 +422,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       {showCreate && (
         <Modal title="Add Product" onClose={() => setShowCreate(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
-            <ProductFormFields form={createForm} onChange={setCreateForm} />
+            <ProductFormFields form={createForm} onChange={setCreateForm} symbol={symbol} />
             {createError && (
               <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{createError}</p>
             )}
@@ -335,7 +443,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       {editing && (
         <Modal title="Edit Product" onClose={() => setEditing(null)}>
           <form onSubmit={handleEdit} className="space-y-4">
-            <ProductFormFields form={editForm} onChange={setEditForm} />
+            <ProductFormFields form={editForm} onChange={setEditForm} symbol={symbol} />
             {editError && (
               <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>
             )}

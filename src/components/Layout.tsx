@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, Users, LogOut, ShieldCheck,
@@ -12,9 +12,13 @@ export function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
 
-  // Close drawer on route change
-  useEffect(() => { setDrawerOpen(false) }, [location.pathname])
+  // Close drawer + reset scroll on route change
+  useEffect(() => {
+    setDrawerOpen(false)
+    mainRef.current?.scrollTo({ top: 0, left: 0 })
+  }, [location.pathname])
 
   // Lock body scroll while drawer open
   useEffect(() => {
@@ -170,7 +174,7 @@ export function Layout() {
           <span className="text-sm font-semibold text-white tracking-tight">SaaS Dashboard</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto overscroll-contain">
+        <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain">
           <Outlet />
         </main>
       </div>
