@@ -78,49 +78,74 @@ export function AdminPage() {
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenants.</div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {showSpinner ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Loading…</p>
-          </div>
-        ) : tenants.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Building2 className="w-8 h-8 text-gray-700" />
-            <p className="text-gray-500 text-sm">No tenants found.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-800/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Slug</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {tenants.map((t) => (
-                <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-white">{t.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400 font-mono">{t.slug}</td>
-                  <td className="px-6 py-4"><Badge active={t.isActive} /></td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      to={`/admin/tenants/${t.id}`}
-                      className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                    >
-                      View →
-                    </Link>
-                  </td>
+      {showSpinner ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
+          <p className="text-gray-500 text-sm">Loading…</p>
+        </div>
+      ) : tenants.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+          <Building2 className="w-8 h-8 text-gray-700" />
+          <p className="text-gray-500 text-sm">No tenants found.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-800/40">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Slug</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
+                  <th className="px-6 py-3" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {tenants.map((t) => (
+                  <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-white">{t.name}</td>
+                    <td className="px-6 py-4 text-sm text-gray-400 font-mono">{t.slug}</td>
+                    <td className="px-6 py-4"><Badge active={t.isActive} /></td>
+                    <td className="px-6 py-4 text-sm text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        to={`/admin/tenants/${t.id}`}
+                        className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {tenants.map((t) => (
+              <Link
+                key={t.id}
+                to={`/admin/tenants/${t.id}`}
+                className="block bg-gray-900 border border-gray-800 rounded-xl p-4 hover:bg-gray-800/30 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white truncate">{t.name}</p>
+                    <p className="text-xs text-gray-400 font-mono mt-0.5 truncate">{t.slug}</p>
+                  </div>
+                  <Badge active={t.isActive} />
+                </div>
+                <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-800">
+                  Created {new Date(t.createdAt).toLocaleDateString()}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">

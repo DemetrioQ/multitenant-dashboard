@@ -5,15 +5,32 @@ import { useDropzone } from 'react-dropzone'
 import { Upload } from 'lucide-react'
 import getCroppedImg from '../utils/cropImage'
 import { uploadFiles } from '../uploadthing/client'
+import type { OurFileRouter } from '../uploadthing/router'
 import { Modal } from './Modal'
 
 interface Props {
   open: boolean
   onClose: () => void
-  onUpload: (url: string) => Promise<void>
+  onUpload: (url: string) => void | Promise<void>
+  title: string
+  route: keyof OurFileRouter
+  cropShape?: 'round' | 'rect'
+  aspect?: number
+  fileNamePrefix?: string
+  maxSizeLabel?: string
 }
 
-export function AvatarCropModal({ open, onClose, onUpload }: Props) {
+export function ImageCropModal({
+  open,
+  onClose,
+  onUpload,
+  title,
+  route,
+  cropShape = 'round',
+  aspect = 1,
+  fileNamePrefix = 'image',
+  maxSizeLabel = 'Max 2 MB',
+}: Props) {
   const [imageSrc, setImageSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
@@ -59,13 +76,13 @@ export function AvatarCropModal({ open, onClose, onUpload }: Props) {
     setError(null)
     try {
       const blob = await getCroppedImg(imageSrc, croppedAreaPixels)
-      const file = new File([blob], `avatar-${Date.now()}.jpg`, { type: 'image/jpeg' })
-      const res = await uploadFiles('avatarUploader', { files: [file] })
+      const file = new File([blob], `${fileNamePrefix}-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      const res = await uploadFiles(route, { files: [file] })
       const url = res[0]!.ufsUrl
       await onUpload(url)
       handleClose()
     } catch {
-      setError('Failed to upload avatar. Please try again.')
+      setError('Failed to upload image. Please try again.')
     } finally {
       setUploading(false)
     }
@@ -74,7 +91,7 @@ export function AvatarCropModal({ open, onClose, onUpload }: Props) {
   if (!open) return null
 
   return (
-    <Modal title="Upload avatar" onClose={handleClose}>
+    <Modal title={title} onClose={handleClose}>
       {!imageSrc ? (
         <div
           {...getRootProps()}
@@ -89,7 +106,7 @@ export function AvatarCropModal({ open, onClose, onUpload }: Props) {
           <p className="text-sm text-gray-400">
             {isDragActive ? 'Drop the image here...' : 'Drag & drop or click to select'}
           </p>
-          <p className="text-xs text-gray-600 mt-1">Max 2 MB</p>
+          <p className="text-xs text-gray-600 mt-1">{maxSizeLabel}</p>
         </div>
       ) : (
         <>
@@ -98,8 +115,8 @@ export function AvatarCropModal({ open, onClose, onUpload }: Props) {
               image={imageSrc}
               crop={crop}
               zoom={zoom}
-              aspect={1}
-              cropShape="round"
+              aspect={aspect}
+              cropShape={cropShape}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}

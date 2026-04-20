@@ -122,27 +122,46 @@ export function AdminTenantDetailPage() {
                 <p className="text-gray-500 text-sm">No users in this tenant.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-gray-800 bg-gray-800/40">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joined</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-gray-800/30 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-white">{u.email}</td>
-                      <td className="px-6 py-4 text-sm text-gray-400">{u.role}</td>
-                      <td className="px-6 py-4"><Badge active={u.isActive} /></td>
-                      <td className="px-6 py-4 text-sm text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+              <>
+                {/* Desktop table */}
+                <div className="hidden sm:block overflow-x-auto"><table className="w-full min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-gray-800 bg-gray-800/40">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joined</th>
                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="px-6 py-4 text-sm font-medium text-white">{u.email}</td>
+                        <td className="px-6 py-4 text-sm text-gray-400">{u.role}</td>
+                        <td className="px-6 py-4"><Badge active={u.isActive} /></td>
+                        <td className="px-6 py-4 text-sm text-gray-400">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="sm:hidden divide-y divide-gray-800">
+                  {users.map((u) => (
+                    <div key={u.id} className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-white truncate min-w-0">{u.email}</p>
+                        <Badge active={u.isActive} />
+                      </div>
+                      <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                        <span className="capitalize">{u.role}</span>
+                        <span>Joined {new Date(u.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-              </div>
+                </div>
+              </>
             )}
           </div>
 

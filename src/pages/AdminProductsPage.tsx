@@ -79,42 +79,64 @@ export function AdminProductsPage() {
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load products.</div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {showSpinner ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Loading...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Package className="w-8 h-8 text-gray-700" />
-            <p className="text-gray-500 text-sm">No products found.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-800/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tenant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-400">{tenantMap[p.tenantId] ?? p.tenantId}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-white">{p.name}</td>
-                  <td className="px-6 py-4 text-sm text-white font-mono">${p.price.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
-                  <td className="px-6 py-4"><Badge active={p.isActive} /></td>
+      {showSpinner ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
+          <p className="text-gray-500 text-sm">Loading...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+          <Package className="w-8 h-8 text-gray-700" />
+          <p className="text-gray-500 text-sm">No products found.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-800/40">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tenant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {filtered.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4 text-sm text-gray-400">{tenantMap[p.tenantId] ?? p.tenantId}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-white">{p.name}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono">${p.price.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
+                    <td className="px-6 py-4"><Badge active={p.isActive} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {filtered.map((p) => (
+              <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{tenantMap[p.tenantId] ?? p.tenantId}</p>
+                  </div>
+                  <Badge active={p.isActive} />
+                </div>
+                <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-800 text-xs">
+                  <span className="text-white font-mono">${p.price.toFixed(2)}</span>
+                  <span className="text-gray-500">Stock: {p.stock}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">

@@ -65,44 +65,64 @@ export function AuditPage() {
         <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load audit log.</div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        {showSpinner ? (
-          <div className="flex items-center justify-center py-20">
-            <p className="text-gray-500 text-sm">Loading…</p>
-          </div>
-        ) : entries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <ClipboardList className="w-8 h-8 text-gray-700" />
-            <p className="text-gray-500 text-sm">No audit events yet.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-800/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Entity</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Details</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {entries.map((e) => (
-                <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4 text-sm text-white">{e.userEmail}</td>
-                  <td className="px-6 py-4"><ActionBadge action={e.action} /></td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{e.entityType}</td>
-                  <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">{e.details ?? '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
-                    {new Date(e.createdAt).toLocaleString()}
-                  </td>
+      {showSpinner ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
+          <p className="text-gray-500 text-sm">Loading…</p>
+        </div>
+      ) : entries.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+          <ClipboardList className="w-8 h-8 text-gray-700" />
+          <p className="text-gray-500 text-sm">No audit events yet.</p>
+        </div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-800/40">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Entity</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Details</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {entries.map((e) => (
+                  <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4 text-sm text-white">{e.userEmail}</td>
+                    <td className="px-6 py-4"><ActionBadge action={e.action} /></td>
+                    <td className="px-6 py-4 text-sm text-gray-400">{e.entityType}</td>
+                    <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">{e.details ?? '—'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
+                      {new Date(e.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Mobile timeline */}
+          <div className="sm:hidden bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 overflow-hidden">
+            {entries.map((e) => (
+              <div key={e.id} className="p-4">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <ActionBadge action={e.action} />
+                  <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
+                    {new Date(e.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-sm text-white truncate">{e.userEmail}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{e.entityType}</p>
+                {e.details && <p className="text-xs text-gray-300 mt-2 break-words">{e.details}</p>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">

@@ -114,34 +114,57 @@ export function CustomerDetailPage() {
             <p className="text-gray-500 text-sm">No orders yet.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-            <thead>
-              <tr className="border-b border-gray-800 bg-gray-800/40">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {customer.orders.map((o) => (
-                <tr key={o.id} className="hover:bg-gray-800/30 transition-colors">
-                  <td className="px-6 py-4">
-                    <Link
-                      to={`/orders/${o.id}`}
-                      className="text-sm text-indigo-400 hover:text-indigo-300 font-mono font-medium"
-                    >
-                      {o.number}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
-                  <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total, tenantCurrency)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
+          <>
+            {/* Desktop table */}
+            <div className="hidden sm:block overflow-x-auto"><table className="w-full min-w-[600px]">
+              <thead>
+                <tr className="border-b border-gray-800 bg-gray-800/40">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {customer.orders.map((o) => (
+                  <tr key={o.id} className="hover:bg-gray-800/30 transition-colors">
+                    <td className="px-6 py-4">
+                      <Link
+                        to={`/orders/${o.id}`}
+                        className="text-sm text-indigo-400 hover:text-indigo-300 font-mono font-medium"
+                      >
+                        {o.number}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
+                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="sm:hidden divide-y divide-gray-800">
+              {customer.orders.map((o) => (
+                <Link
+                  key={o.id}
+                  to={`/orders/${o.id}`}
+                  className="block p-4 hover:bg-gray-800/30 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-indigo-400 font-mono font-medium">{o.number}</span>
+                    <StatusBadge status={o.status} />
+                  </div>
+                  <div className="flex items-center justify-between mt-2 text-xs">
+                    <span className="text-gray-500">{formatDate(o.createdAt)}</span>
+                    <span className="text-white font-mono">{formatMoney(o.total, tenantCurrency)}</span>
+                  </div>
+                </Link>
               ))}
-            </tbody>
-          </table>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

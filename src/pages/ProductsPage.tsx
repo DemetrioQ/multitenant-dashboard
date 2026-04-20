@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight, Camera } from 'lucide-react'
 import { getProducts, createProduct, updateProduct, deleteProduct, setProductStatus, type Product } from '../api/products'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
+import { ImageCropModal } from '../components/ImageCropModal'
 import { formatMoney, currencySymbol } from '../utils/format'
 
 const PAGE_SIZE = 10
@@ -55,12 +56,15 @@ function ProductFormFields({
   form,
   onChange,
   symbol,
+  onOpenImageUpload,
 }: {
   form: ProductForm
   onChange: (f: ProductForm) => void
   symbol: string
+  onOpenImageUpload: () => void
 }) {
   const pricePadding = symbol.length > 1 ? 'pl-10' : 'pl-8'
+  const hasImage = !!form.imageUrl
   return (
     <>
       <div className="space-y-1.5">
@@ -87,17 +91,42 @@ function ProductFormFields({
       </div>
       <div className="space-y-1.5">
         <label className="block text-sm font-medium text-gray-300">
-          Image URL <span className="text-gray-500 font-normal">(optional)</span>
+          Image <span className="text-gray-500 font-normal">(optional)</span>
         </label>
         <div className="flex items-center gap-3">
-          <ProductThumb src={form.imageUrl.trim() || null} size="md" />
-          <input
-            type="url"
-            value={form.imageUrl}
-            onChange={(e) => onChange({ ...form, imageUrl: e.target.value })}
-            placeholder="https://example.com/photo.jpg"
-            className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <button
+            type="button"
+            onClick={onOpenImageUpload}
+            className="relative group w-20 h-20 rounded-lg overflow-hidden border border-gray-700 bg-gray-800 flex items-center justify-center flex-shrink-0"
+          >
+            {hasImage ? (
+              <img src={form.imageUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <Package className="w-6 h-6 text-gray-600" />
+            )}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity">
+              <Camera className="w-4 h-4 text-white" />
+              <span className="text-white text-[10px] font-medium mt-0.5">{hasImage ? 'Change' : 'Upload'}</span>
+            </div>
+          </button>
+          <div className="flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={onOpenImageUpload}
+              className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+            >
+              {hasImage ? 'Replace image' : 'Upload image'}
+            </button>
+            {hasImage && (
+              <button
+                type="button"
+                onClick={() => onChange({ ...form, imageUrl: '' })}
+                className="block text-xs text-gray-500 hover:text-red-400 mt-1 transition-colors"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -164,6 +193,16 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
   const [editForm, setEditForm] = useState<ProductForm>(emptyForm)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
+
+  const [imageUploadTarget, setImageUploadTarget] = useState<'create' | 'edit' | null>(null)
+
+  const handleImageUploaded = (url: string) => {
+    if (imageUploadTarget === 'edit') {
+      setEditForm((prev) => ({ ...prev, imageUrl: url }))
+    } else {
+      setCreateForm((prev) => ({ ...prev, imageUrl: url }))
+    }
+  }
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -422,7 +461,12 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       {showCreate && (
         <Modal title="Add Product" onClose={() => setShowCreate(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
-            <ProductFormFields form={createForm} onChange={setCreateForm} symbol={symbol} />
+            <ProductFormFields
+              form={createForm}
+              onChange={setCreateForm}
+              symbol={symbol}
+              onOpenImageUpload={() => setImageUploadTarget('create')}
+            />
             {createError && (
               <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{createError}</p>
             )}
@@ -443,7 +487,12 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       {editing && (
         <Modal title="Edit Product" onClose={() => setEditing(null)}>
           <form onSubmit={handleEdit} className="space-y-4">
-            <ProductFormFields form={editForm} onChange={setEditForm} symbol={symbol} />
+            <ProductFormFields
+              form={editForm}
+              onChange={setEditForm}
+              symbol={symbol}
+              onOpenImageUpload={() => setImageUploadTarget('edit')}
+            />
             {editError && (
               <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>
             )}
@@ -460,6 +509,18 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
           </form>
         </Modal>
       )}
+
+      <ImageCropModal
+        open={imageUploadTarget !== null}
+        onClose={() => setImageUploadTarget(null)}
+        onUpload={handleImageUploaded}
+        title="Product image"
+        route="productImageUploader"
+        cropShape="rect"
+        aspect={1}
+        fileNamePrefix="product"
+        maxSizeLabel="Max 4 MB"
+      />
     </div>
   )
 }

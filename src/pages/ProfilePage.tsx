@@ -6,7 +6,7 @@ import { getMe, updateMe } from '../api/users'
 import { changePassword } from '../api/auth'
 import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
-import { AvatarCropModal } from '../components/AvatarCropModal'
+import { ImageCropModal } from '../components/ImageCropModal'
 
 function inputClass(error?: string) {
   return `block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
@@ -334,10 +334,16 @@ export function ProfilePage() {
         </>
       )}
 
-      <AvatarCropModal
+      <ImageCropModal
         open={showAvatarModal}
         onClose={() => setShowAvatarModal(false)}
         onUpload={handleAvatarUpload}
+        title="Upload avatar"
+        route="avatarUploader"
+        cropShape="round"
+        aspect={1}
+        fileNamePrefix="avatar"
+        maxSizeLabel="Max 2 MB"
       />
     </div>
   )
