@@ -43,7 +43,7 @@ function shippingLines(o: OrderDetail): string[] {
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { tenantCurrency, isAdmin } = useAuth()
+  const { isAdmin } = useAuth()
   const qc = useQueryClient()
 
   const { data: order, isLoading, error } = useQuery({
@@ -176,11 +176,11 @@ export function OrderDetailPage() {
                 <div>
                   <p className="text-sm text-white">{it.productName}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {it.productSku ? `SKU ${it.productSku} · ` : ''}{formatMoney(it.unitPrice, tenantCurrency)} × {it.quantity}
+                    {it.productSku ? `SKU ${it.productSku} · ` : ''}{formatMoney(it.unitPrice)} × {it.quantity}
                   </p>
                 </div>
                 <span className="text-sm font-mono text-white whitespace-nowrap">
-                  {formatMoney(it.lineTotal, tenantCurrency)}
+                  {formatMoney(it.lineTotal)}
                 </span>
               </li>
             ))}
@@ -189,11 +189,24 @@ export function OrderDetailPage() {
           <div className="border-t border-gray-800 mt-4 pt-4 space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">Subtotal</span>
-              <span className="text-white font-mono">{formatMoney(order.subtotal, tenantCurrency)}</span>
+              <span className="text-white font-mono">{formatMoney(order.subtotal)}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">Total</span>
-              <span className="text-lg font-semibold text-white font-mono">{formatMoney(order.total, tenantCurrency)}</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">Total</span>
+              <span className="text-white font-mono">{formatMoney(order.total)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-400">
+                Platform fee ({(order.platformFeePercent * 100).toFixed(order.platformFeePercent < 0.01 ? 2 : 0)}%)
+              </span>
+              <span className="text-rose-400 font-mono">−{formatMoney(order.platformFeeAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-gray-800">
+              <div>
+                <span className="text-sm font-medium text-white">Your net</span>
+                <span className="block text-xs text-gray-500">before Stripe processing fees</span>
+              </div>
+              <span className="text-lg font-semibold text-emerald-400 font-mono">{formatMoney(order.netAmount)}</span>
             </div>
           </div>
         </div>

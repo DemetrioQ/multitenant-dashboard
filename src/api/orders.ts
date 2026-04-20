@@ -38,6 +38,9 @@ export interface OrderDetail {
   customer: OrderCustomer
   subtotal: number
   total: number
+  platformFeePercent: number
+  platformFeeAmount: number
+  netAmount: number
   paymentProvider: string | null
   shippingLine1: string
   shippingLine2: string | null

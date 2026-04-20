@@ -1,21 +1,43 @@
 import { apiClient } from './client'
 import type { User } from './users'
-import type { Tenant } from './tenants'
+import type { Tenant, TenantWithMetrics } from './tenants'
 import type { AuditResult } from './audit'
 import type { ProductsResult } from './products'
 
 export interface AdminStats {
   totalTenants: number
+  activeTenants: number
+  inactiveTenants: number
+  newTenantsThisWeek: number
   totalUsers: number
   totalProducts: number
 }
 
+export type AdminTenant = TenantWithMetrics
+
 export interface TenantsResult {
-  items: Tenant[]
+  items: TenantWithMetrics[]
   totalCount: number
   page: number
   pageSize: number
 }
+
+export type SignupsPeriod = '7d' | '30d' | '90d'
+export type SignupsEntity = 'tenants' | 'users' | 'customers'
+
+export interface SignupsPoint {
+  date: string
+  count: number
+}
+
+export interface SignupsResult {
+  entity: SignupsEntity
+  days: number
+  points: SignupsPoint[]
+}
+
+export const getAdminSignups = (period: SignupsPeriod = '30d', entity: SignupsEntity = 'tenants') =>
+  apiClient.get<SignupsResult>('/api/v1/admin/stats/signups', { params: { period, entity } }).then((r) => r.data)
 
 export interface UsersResult {
   items: User[]

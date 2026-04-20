@@ -103,7 +103,7 @@ export function Layout() {
 
           {isSuperAdmin ? (
             <>
-              <NavLink to="/admin" className={navClass}>
+              <NavLink to="/admin" end className={navClass}>
                 <Building2 className="w-4 h-4 flex-shrink-0" /> Tenants
               </NavLink>
               <NavLink to="/admin/products" className={navClass}>

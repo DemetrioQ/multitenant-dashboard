@@ -7,7 +7,6 @@ import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 
-const CURRENCY_RE = /^[A-Z]{3}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function inputClass(error?: string) {
@@ -33,8 +32,6 @@ function Badge({ active }: { active: boolean }) {
 
 interface EditForm {
   name: string
-  timezone: string
-  currency: string
   supportEmail: string
   websiteUrl: string
 }
@@ -43,12 +40,6 @@ type EditErrors = Partial<Record<keyof EditForm, string>>
 function validateEdit(f: EditForm): EditErrors {
   const errors: EditErrors = {}
   if (!f.name.trim()) errors.name = 'Name is required.'
-  if (!f.timezone.trim()) errors.timezone = 'Timezone is required.'
-  if (!f.currency.trim()) {
-    errors.currency = 'Currency is required.'
-  } else if (!CURRENCY_RE.test(f.currency)) {
-    errors.currency = 'Must be 3 uppercase letters (e.g. USD).'
-  }
   if (f.supportEmail && !EMAIL_RE.test(f.supportEmail)) {
     errors.supportEmail = 'Must be a valid email address.'
   }
@@ -73,7 +64,7 @@ export function TenantSettingsPage() {
   const showSpinner = isLoading && !tenant
 
   const [editing, setEditing] = useState(false)
-  const [editForm, setEditForm] = useState<EditForm>({ name: '', timezone: '', currency: '', supportEmail: '', websiteUrl: '' })
+  const [editForm, setEditForm] = useState<EditForm>({ name: '', supportEmail: '', websiteUrl: '' })
   const [editErrors, setEditErrors] = useState<EditErrors>({})
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
@@ -82,8 +73,6 @@ export function TenantSettingsPage() {
     if (!tenant) return
     setEditForm({
       name: tenant.name,
-      timezone: tenant.timezone,
-      currency: tenant.currency,
       supportEmail: tenant.supportEmail ?? '',
       websiteUrl: tenant.websiteUrl ?? '',
     })
@@ -93,8 +82,7 @@ export function TenantSettingsPage() {
   }
 
   const setField = (key: keyof EditForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = key === 'currency' ? e.target.value.toUpperCase() : e.target.value
-    setEditForm((prev) => ({ ...prev, [key]: value }))
+    setEditForm((prev) => ({ ...prev, [key]: e.target.value }))
     if (editErrors[key]) setEditErrors((prev) => ({ ...prev, [key]: undefined }))
   }
 
@@ -108,8 +96,6 @@ export function TenantSettingsPage() {
     try {
       await updateTenant(tenant.id, {
         name: editForm.name.trim(),
-        timezone: editForm.timezone.trim(),
-        currency: editForm.currency.trim(),
         supportEmail: editForm.supportEmail.trim() || null,
         websiteUrl: editForm.websiteUrl.trim() || null,
       })
@@ -119,7 +105,7 @@ export function TenantSettingsPage() {
       const apiErrors: Record<string, string[]> | undefined = err.response?.data?.errors
       if (apiErrors) {
         const keyMap: Record<string, keyof EditForm> = {
-          Name: 'name', Timezone: 'timezone', Currency: 'currency',
+          Name: 'name',
           SupportEmail: 'supportEmail', WebsiteUrl: 'websiteUrl',
         }
         const mapped: EditErrors = {}
@@ -168,8 +154,6 @@ export function TenantSettingsPage() {
             { label: 'Status',  value: <Badge active={tenant.isActive} /> },
             { label: 'Created', value: new Date(tenant.createdAt).toLocaleDateString() },
             { label: 'ID',      value: tenant.id, mono: true },
-            { label: 'Timezone', value: tenant.timezone },
-            { label: 'Currency', value: tenant.currency },
             ...(tenant.supportEmail ? [{
               label: 'Support email',
               value: (
@@ -234,11 +218,9 @@ export function TenantSettingsPage() {
           <form onSubmit={handleEdit} noValidate className="space-y-4">
             {([
               { key: 'name' as const, label: 'Name', type: 'text', placeholder: '' },
-              { key: 'timezone' as const, label: 'Timezone', type: 'text', placeholder: 'UTC' },
-              { key: 'currency' as const, label: 'Currency', type: 'text', placeholder: 'USD', maxLength: 3, hint: 'ISO 4217 — 3 uppercase letters.' },
               { key: 'supportEmail' as const, label: 'Support email', type: 'email', placeholder: 'support@example.com', optional: true },
               { key: 'websiteUrl' as const, label: 'Website URL', type: 'url', placeholder: 'https://example.com', optional: true },
-            ]).map(({ key, label, type, placeholder, maxLength, hint, optional }) => (
+            ]).map(({ key, label, type, placeholder, optional }) => (
               <div key={key} className="space-y-1.5">
                 <label className="block text-sm font-medium text-gray-300">
                   {label}{optional && <span className="text-gray-500 font-normal"> (optional)</span>}
@@ -248,11 +230,9 @@ export function TenantSettingsPage() {
                   value={editForm[key]}
                   onChange={setField(key)}
                   placeholder={placeholder}
-                  maxLength={maxLength}
                   className={inputClass(editErrors[key])}
                 />
                 <FieldError msg={editErrors[key]} />
-                {hint && <p className="text-xs text-gray-500">{hint}</p>}
               </div>
             ))}
             {editError && (

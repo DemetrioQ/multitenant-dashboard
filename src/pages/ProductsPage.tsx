@@ -5,7 +5,7 @@ import { getProducts, createProduct, updateProduct, deleteProduct, setProductSta
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 import { ImageCropModal } from '../components/ImageCropModal'
-import { formatMoney, currencySymbol } from '../utils/format'
+import { formatMoney } from '../utils/format'
 
 const PAGE_SIZE = 10
 
@@ -55,15 +55,12 @@ function Badge({ active }: { active: boolean }) {
 function ProductFormFields({
   form,
   onChange,
-  symbol,
   onOpenImageUpload,
 }: {
   form: ProductForm
   onChange: (f: ProductForm) => void
-  symbol: string
   onOpenImageUpload: () => void
 }) {
-  const pricePadding = symbol.length > 1 ? 'pl-10' : 'pl-8'
   const hasImage = !!form.imageUrl
   return (
     <>
@@ -133,7 +130,7 @@ function ProductFormFields({
         <div className="space-y-1.5">
           <label className="block text-sm font-medium text-gray-300">Price</label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none select-none">{symbol}</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none select-none">$</span>
             <input
               type="number"
               required
@@ -142,7 +139,7 @@ function ProductFormFields({
               value={form.price}
               onChange={(e) => onChange({ ...form, price: e.target.value })}
               placeholder="9.99"
-              className={`w-full bg-gray-800 border border-gray-700 rounded-lg ${pricePadding} pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>
@@ -165,8 +162,7 @@ function ProductFormFields({
 }
 
 export function ProductsPage({ initialCreate = false }: { initialCreate?: boolean }) {
-  const { isAdmin, tenantCurrency } = useAuth()
-  const symbol = currencySymbol(tenantCurrency)
+  const { isAdmin } = useAuth()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
 
@@ -338,7 +334,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{p.description}</td>
-                    <td className="px-6 py-4 text-sm text-white font-mono whitespace-nowrap">{formatMoney(p.price, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono whitespace-nowrap">{formatMoney(p.price)}</td>
                     <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
                     <td className="px-6 py-4"><Badge active={p.isActive} /></td>
                     <td className="px-6 py-4">
@@ -394,7 +390,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
                     </div>
                     <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.description}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs">
-                      <span className="text-white font-mono">{formatMoney(p.price, tenantCurrency)}</span>
+                      <span className="text-white font-mono">{formatMoney(p.price)}</span>
                       <span className="text-gray-500">Stock: {p.stock}</span>
                     </div>
                   </div>
@@ -464,7 +460,6 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
             <ProductFormFields
               form={createForm}
               onChange={setCreateForm}
-              symbol={symbol}
               onOpenImageUpload={() => setImageUploadTarget('create')}
             />
             {createError && (
@@ -490,7 +485,6 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
             <ProductFormFields
               form={editForm}
               onChange={setEditForm}
-              symbol={symbol}
               onOpenImageUpload={() => setImageUploadTarget('edit')}
             />
             {editError && (

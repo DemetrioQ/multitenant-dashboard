@@ -9,6 +9,7 @@ export interface PaymentsConnectStatus {
   chargesEnabled: boolean
   detailsSubmitted: boolean
   canAcceptPayments: boolean
+  platformFeePercent: number
 }
 
 export interface OnboardingLink {

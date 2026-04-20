@@ -6,15 +6,19 @@ export interface Tenant {
   slug: string
   isActive: boolean
   createdAt: string
-  timezone: string
-  currency: string
   supportEmail: string | null
   websiteUrl: string | null
   storeUrl: string | null
 }
 
+export interface TenantWithMetrics extends Tenant {
+  userCount: number
+  productCount: number
+  lastActivityAt: string | null
+}
+
 export const getTenants = () =>
-  apiClient.get<Tenant[]>('/api/v1/tenants').then((r) => r.data)
+  apiClient.get<TenantWithMetrics[]>('/api/v1/tenants').then((r) => r.data)
 
 export const getTenantMe = () =>
   apiClient.get<Tenant>('/api/v1/tenants/me').then((r) => r.data)
@@ -31,8 +35,6 @@ export const createTenant = (name: string, slug: string) =>
 
 export const updateTenant = (id: string, data: {
   name: string
-  timezone: string
-  currency: string
   supportEmail: string | null
   websiteUrl: string | null
 }) => apiClient.put(`/api/v1/tenants/${id}`, data)
@@ -63,7 +65,10 @@ export interface DashboardData {
   customerCount: number
   pendingOrderCount: number
   paidOrderCount: number
-  totalRevenue: number
+  grossRevenue: number
+  platformFees: number
+  netRevenue: number
+  currentFeePercent: number
   averageOrderValue: number
   topProducts: TopProduct[]
   onboardingComplete: boolean

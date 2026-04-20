@@ -1,41 +1,213 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Navigate, Link } from 'react-router-dom'
-import { Building2, ShieldCheck, ChevronLeft, ChevronRight, Users, Package } from 'lucide-react'
-import { getAdminStats, getAdminTenants } from '../api/admin'
+import { Building2, ShieldCheck, Users, Package, ClipboardList, ArrowRight, TrendingUp } from 'lucide-react'
+import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
+import {
+  getAdminStats, getAdminTenants, getAdminAudit, getAdminSignups,
+  type SignupsPeriod, type SignupsEntity,
+} from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
 
-const PAGE_SIZE = 20
-
-function StatCard({ label, value, icon: Icon, color, bg }: {
-  label: string; value: number; icon: React.ElementType; color: string; bg: string
-}) {
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-gray-400">{label}</span>
-        <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}>
-          <Icon className={`w-4 h-4 ${color}`} />
-        </div>
-      </div>
-      <p className="text-3xl font-bold text-white">{value}</p>
-    </div>
-  )
+const ACTION_LABELS: Record<string, string> = {
+  'product.created': 'Product created',
+  'product.updated': 'Product updated',
+  'product.activated': 'Product activated',
+  'product.deactivated': 'Product deactivated',
+  'tenant.updated': 'Tenant updated',
+  'tenant.deactivated': 'Tenant deactivated',
+  'user.role_updated': 'Role changed',
+  'user.deactivated': 'User deactivated',
+  'user.invited': 'User invited',
+  'profile.updated': 'Profile updated',
 }
 
-function Badge({ active }: { active: boolean }) {
+function ActionBadge({ action }: { action: string }) {
+  const isDestructive = action.includes('deactivated')
+  const isPositive = action.includes('created') || action.includes('invited') || (action.includes('activated') && !isDestructive)
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-      active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-800 text-gray-500 border-gray-700'
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${
+      isDestructive ? 'bg-red-500/10 text-red-400 border-red-500/20'
+      : isPositive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+      : 'bg-gray-800 text-gray-400 border-gray-700'
     }`}>
-      {active ? 'Active' : 'Inactive'}
+      {ACTION_LABELS[action] ?? action}
     </span>
   )
 }
 
+function StatCard({ label, value, icon: Icon, color, bg, sub }: {
+  label: string; value: number; icon: React.ElementType; color: string; bg: string
+  sub?: React.ReactNode
+}) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <span className="text-xs sm:text-sm font-medium text-gray-400">{label}</span>
+        <div className={`w-8 h-8 sm:w-9 sm:h-9 ${bg} rounded-lg flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${color}`} />
+        </div>
+      </div>
+      <p className="text-2xl sm:text-3xl font-bold text-white">{value}</p>
+      {sub && <div className="mt-1.5">{sub}</div>}
+    </div>
+  )
+}
+
+function DeltaBadge({ value, label }: { value: number; label: string }) {
+  if (value <= 0) return <span className="text-xs text-gray-500">{label}</span>
+  return (
+    <span className="inline-flex items-center text-xs font-medium text-emerald-400">
+      +{value} {label}
+    </span>
+  )
+}
+
+const PERIOD_OPTIONS: { value: SignupsPeriod; label: string }[] = [
+  { value: '7d',  label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+]
+
+const ENTITY_OPTIONS: { value: SignupsEntity; label: string }[] = [
+  { value: 'tenants',   label: 'Tenants' },
+  { value: 'users',     label: 'Users' },
+  { value: 'customers', label: 'Customers' },
+]
+
+function SignupsChart() {
+  const [period, setPeriod] = useState<SignupsPeriod>('30d')
+  const [entity, setEntity] = useState<SignupsEntity>('tenants')
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin', 'signups', period, entity],
+    queryFn: () => getAdminSignups(period, entity),
+    placeholderData: (prev) => prev,
+  })
+
+  const points = data?.points ?? []
+  const total = points.reduce((sum, p) => sum + p.count, 0)
+  const showEmpty = !isLoading && total === 0
+
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-4 h-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-white">Signups</h2>
+          <span className="text-xs text-gray-500">· {total} total</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2 sm:flex-shrink-0">
+          <select
+            value={entity}
+            onChange={(e) => setEntity(e.target.value as SignupsEntity)}
+            className="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {ENTITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as SignupsPeriod)}
+            className="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {PERIOD_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="w-full h-48 sm:h-56">
+        {showEmpty ? (
+          <div className="h-full flex items-center justify-center text-sm text-gray-500">
+            No signups in this range.
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={points} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="signupsFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke="#1f2937" vertical={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: '#6b7280', fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+                tickFormatter={(v: string) => {
+                  const d = new Date(v)
+                  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                }}
+              />
+              <YAxis
+                tick={{ fill: '#6b7280', fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                width={28}
+                allowDecimals={false}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1f2937', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: '#9ca3af' }}
+                itemStyle={{ color: '#fff' }}
+                labelFormatter={(v: string) => new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                formatter={(value: number) => [value, entity === 'tenants' ? 'Tenants' : entity === 'users' ? 'Users' : 'Customers']}
+              />
+              <Area
+                type="monotone"
+                dataKey="count"
+                stroke="#6366f1"
+                strokeWidth={2}
+                fill="url(#signupsFill)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SectionHeader({ icon: Icon, title, href, linkLabel }: {
+  icon: React.ElementType; title: string; href: string; linkLabel: string
+}) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4 text-gray-400" />
+        <h2 className="text-sm font-semibold text-white">{title}</h2>
+      </div>
+      <Link to={href} className="inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+        {linkLabel} <ArrowRight className="w-3.5 h-3.5" />
+      </Link>
+    </div>
+  )
+}
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const sec = Math.floor(diffMs / 1000)
+  if (sec < 60) return 'just now'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 30) return `${day}d ago`
+  const month = Math.floor(day / 30)
+  if (month < 12) return `${month}mo ago`
+  const year = Math.floor(month / 12)
+  return `${year}y ago`
+}
+
 export function AdminPage() {
   const { isSuperAdmin } = useAuth()
-  const [page, setPage] = useState(1)
 
   const { data: stats } = useQuery({
     queryKey: ['admin', 'stats'],
@@ -43,125 +215,144 @@ export function AdminPage() {
     enabled: isSuperAdmin,
   })
 
-  const { data: tenantsData, isLoading, error } = useQuery({
-    queryKey: ['admin', 'tenants', page],
-    queryFn: () => getAdminTenants(page, PAGE_SIZE),
-    placeholderData: (prev) => prev,
+  const { data: recentTenantsData, isLoading: tenantsLoading } = useQuery({
+    queryKey: ['admin', 'tenants', 'recent'],
+    queryFn: () => getAdminTenants(1, 5),
     enabled: isSuperAdmin,
   })
-  const tenants = tenantsData?.items ?? []
-  const totalCount = tenantsData?.totalCount ?? 0
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
-  const showSpinner = isLoading && !tenantsData
+  const recentTenants = recentTenantsData?.items ?? []
+
+  const { data: recentAuditData, isLoading: auditLoading } = useQuery({
+    queryKey: ['admin', 'audit', 'recent'],
+    queryFn: () => getAdminAudit(1, 10),
+    enabled: isSuperAdmin,
+  })
+  const recentAudit = recentAuditData?.items ?? []
 
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center gap-3">
           <ShieldCheck className="w-5 h-5 text-amber-400" />
           <h1 className="text-2xl font-semibold text-white">Platform admin</h1>
         </div>
-        <p className="text-amber-400/70 mt-1 text-sm">Super-admin view — all tenants</p>
+        <p className="text-amber-400/70 mt-1 text-sm">Super-admin overview</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <StatCard
+          label="Tenants"
+          value={stats?.totalTenants ?? 0}
+          icon={Building2}
+          color="text-amber-400"
+          bg="bg-amber-500/10"
+          sub={stats ? <DeltaBadge value={stats.newTenantsThisWeek} label="this week" /> : null}
+        />
+        <StatCard
+          label="Users"
+          value={stats?.totalUsers ?? 0}
+          icon={Users}
+          color="text-indigo-400"
+          bg="bg-indigo-500/10"
+          sub={stats ? <span className="text-xs text-gray-500">across all tenants</span> : null}
+        />
+        <StatCard
+          label="Products"
+          value={stats?.totalProducts ?? 0}
+          icon={Package}
+          color="text-emerald-400"
+          bg="bg-emerald-500/10"
+          sub={stats ? <span className="text-xs text-gray-500">across all tenants</span> : null}
+        />
       </div>
 
       {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <StatCard label="Total tenants" value={stats.totalTenants} icon={Building2} color="text-amber-400" bg="bg-amber-500/10" />
-          <StatCard label="Total users" value={stats.totalUsers} icon={Users} color="text-indigo-400" bg="bg-indigo-500/10" />
-          <StatCard label="Total products" value={stats.totalProducts} icon={Package} color="text-emerald-400" bg="bg-emerald-500/10" />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 sm:px-5 sm:py-4">
+            <p className="text-xs text-gray-500">Active tenants</p>
+            <p className="text-lg sm:text-xl font-semibold text-emerald-400 mt-0.5">{stats.activeTenants}</p>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 sm:px-5 sm:py-4">
+            <p className="text-xs text-gray-500">Inactive tenants</p>
+            <p className="text-lg sm:text-xl font-semibold text-gray-400 mt-0.5">{stats.inactiveTenants}</p>
+          </div>
         </div>
       )}
 
-      {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenants.</div>
-      )}
+      <SignupsChart />
 
-      {showSpinner ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading…</p>
-        </div>
-      ) : tenants.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
-          <Building2 className="w-8 h-8 text-gray-700" />
-          <p className="text-gray-500 text-sm">No tenants found.</p>
-        </div>
-      ) : (
-        <>
-          {/* Desktop table */}
-          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Slug</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Created</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {tenants.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-white">{t.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400 font-mono">{t.slug}</td>
-                    <td className="px-6 py-4"><Badge active={t.isActive} /></td>
-                    <td className="px-6 py-4 text-sm text-gray-400">{new Date(t.createdAt).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        to={`/admin/tenants/${t.id}`}
-                        className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
-                      >
-                        View →
-                      </Link>
-                    </td>
-                  </tr>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Recently added tenants */}
+        <section>
+          <SectionHeader icon={Building2} title="Recently added tenants" href="/tenants" linkLabel="Manage" />
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            {tenantsLoading && !recentTenantsData ? (
+              <div className="flex items-center justify-center py-10">
+                <p className="text-gray-500 text-sm">Loading…</p>
+              </div>
+            ) : recentTenants.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <Building2 className="w-6 h-6 text-gray-700" />
+                <p className="text-gray-500 text-sm">No tenants yet.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {recentTenants.map((t) => (
+                  <Link
+                    key={t.id}
+                    to={`/admin/tenants/${t.id}`}
+                    className="flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4 hover:bg-gray-800/30 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-white truncate">{t.name}</p>
+                      <p className="text-xs text-gray-500 font-mono truncate">{t.slug}</p>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
+                      {timeAgo(t.createdAt)}
+                    </span>
+                  </Link>
                 ))}
-              </tbody>
-            </table>
-            </div>
+              </div>
+            )}
           </div>
+        </section>
 
-          {/* Mobile cards */}
-          <div className="sm:hidden space-y-3">
-            {tenants.map((t) => (
-              <Link
-                key={t.id}
-                to={`/admin/tenants/${t.id}`}
-                className="block bg-gray-900 border border-gray-800 rounded-xl p-4 hover:bg-gray-800/30 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white truncate">{t.name}</p>
-                    <p className="text-xs text-gray-400 font-mono mt-0.5 truncate">{t.slug}</p>
+        {/* Recent activity */}
+        <section>
+          <SectionHeader icon={ClipboardList} title="Recent activity" href="/admin/audit" linkLabel="View all" />
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            {auditLoading && !recentAuditData ? (
+              <div className="flex items-center justify-center py-10">
+                <p className="text-gray-500 text-sm">Loading…</p>
+              </div>
+            ) : recentAudit.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <ClipboardList className="w-6 h-6 text-gray-700" />
+                <p className="text-gray-500 text-sm">No activity yet.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-800">
+                {recentAudit.map((e) => (
+                  <div key={e.id} className="px-4 py-3 sm:px-5 sm:py-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <ActionBadge action={e.action} />
+                      <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
+                        {timeAgo(e.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-1.5 truncate">{e.userEmail}</p>
                   </div>
-                  <Badge active={t.isActive} />
-                </div>
-                <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-800">
-                  Created {new Date(t.createdAt).toLocaleDateString()}
-                </p>
-              </Link>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
-        </>
-      )}
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-400">Page {page} of {totalPages}</p>
-          <div className="flex gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+        </section>
+      </div>
     </div>
   )
 }

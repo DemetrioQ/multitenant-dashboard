@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Users, ChevronLeft, ChevronRight, ExternalLink, MailCheck, MailX } from 'lucide-react'
 import { getCustomers, type CustomerSummary } from '../api/customers'
-import { useAuth } from '../hooks/useAuth'
 import { formatMoney, formatDate } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -13,7 +12,6 @@ function customerName(c: CustomerSummary): string {
 }
 
 export function CustomersPage() {
-  const { tenantCurrency } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const pageParam = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
 
@@ -85,7 +83,7 @@ export function CustomersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">{c.orderCount}</td>
-                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(c.lifetimeSpend, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(c.lifetimeSpend)}</td>
                     <td className="px-6 py-4 text-sm text-gray-400">{formatDate(c.createdAt)}</td>
                     <td className="px-6 py-4 text-right">
                       <Link
@@ -131,7 +129,7 @@ export function CustomersPage() {
                   </div>
                   <div>
                     <p className="text-gray-500">Spend</p>
-                    <p className="text-white font-mono mt-0.5">{formatMoney(c.lifetimeSpend, tenantCurrency)}</p>
+                    <p className="text-white font-mono mt-0.5">{formatMoney(c.lifetimeSpend)}</p>
                   </div>
                   <div className="ml-auto text-right">
                     <p className="text-gray-500">Joined</p>

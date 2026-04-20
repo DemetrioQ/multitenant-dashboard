@@ -41,7 +41,6 @@ interface AuthContextType {
   userId: string | null
   tenantName: string | null
   tenantSlug: string | null
-  tenantCurrency: string | null
   storeUrl: string | null
   role: string | null
   avatarUrl: string | null
@@ -152,7 +151,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: state.isAuthenticated,
       tenantName: tenantData?.name ?? null,
       tenantSlug: tenantData?.slug ?? tenantSlugFallback,
-      tenantCurrency: tenantData?.currency ?? null,
       storeUrl: tenantData?.storeUrl ?? null,
       avatarUrl: profileData?.avatarUrl ?? null,
       isAdmin: state.role === 'admin' || state.role === 'super-admin',

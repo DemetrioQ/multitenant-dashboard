@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, CreditCard, CheckCircle2, AlertTriangle, Loader2,
-  Info, ShieldAlert, ExternalLink,
+  Info, ShieldAlert, ExternalLink, Percent,
 } from 'lucide-react'
 import {
   getConnectStatus, startConnectOnboarding, refreshConnectStatus,
@@ -79,6 +79,32 @@ function StatusCard({ status }: { status: PaymentsConnectStatus }) {
         <p className="text-sm text-gray-300 mt-0.5">
           Stripe onboarding started but hasn't finished. Until it's done, card checkout returns an error to your customers.
         </p>
+      </div>
+    </div>
+  )
+}
+
+function FeeDisclosure({ status, prominent }: { status: PaymentsConnectStatus; prominent: boolean }) {
+  const pct = (status.platformFeePercent * 100).toFixed(status.platformFeePercent < 0.01 ? 2 : 0)
+  const containerClass = prominent
+    ? 'bg-indigo-950/30 border border-indigo-900/60 rounded-xl p-4 sm:p-5'
+    : 'bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5'
+  const iconBg = prominent ? 'bg-indigo-500/20' : 'bg-indigo-500/10'
+  return (
+    <div className={containerClass}>
+      <div className="flex items-start gap-3">
+        <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
+          <Percent className="w-4 h-4 text-indigo-400" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-white">
+            Platform fee: {pct}% of each transaction
+          </p>
+          <p className="text-sm text-gray-300 mt-1">
+            We take <span className="text-white font-medium">{pct}%</span> of each transaction.
+            Stripe's own processing fees (~2.9% + $0.30) are separate and shown in your Stripe dashboard.
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -206,6 +232,8 @@ export function PaymentsSettingsPage() {
       ) : status ? (
         <div className="space-y-4">
           <StatusCard status={status} />
+
+          <FeeDisclosure status={status} prominent={!status.connected} />
 
           {status.connected && <Checklist status={status} />}
 

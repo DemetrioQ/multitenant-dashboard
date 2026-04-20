@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ShoppingCart, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { getOrders, type OrderStatus } from '../api/orders'
-import { useAuth } from '../hooks/useAuth'
 import { formatMoney, formatDate } from '../utils/format'
 
 const PAGE_SIZE = 20
@@ -32,7 +31,6 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 }
 
 export function OrdersPage() {
-  const { tenantCurrency } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const statusParam = (searchParams.get('status') ?? '') as OrderStatus | ''
   const pageParam = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1)
@@ -123,7 +121,7 @@ export function OrdersPage() {
                       <p className="text-gray-500 text-xs">{o.customerEmail}</p>
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
-                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total)}</td>
                     <td className="px-6 py-4 text-sm text-gray-400 text-right">{o.itemCount}</td>
                     <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
                     <td className="px-6 py-4 text-right">
@@ -158,7 +156,7 @@ export function OrdersPage() {
                     <p className="text-sm text-gray-300 mt-1 truncate">{o.customerName || '—'}</p>
                     <p className="text-xs text-gray-500 truncate">{o.customerEmail}</p>
                   </div>
-                  <p className="text-sm text-white font-mono flex-shrink-0">{formatMoney(o.total, tenantCurrency)}</p>
+                  <p className="text-sm text-white font-mono flex-shrink-0">{formatMoney(o.total)}</p>
                 </div>
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-800 text-xs text-gray-500">
                   <span>{o.itemCount} item{o.itemCount !== 1 ? 's' : ''}</span>

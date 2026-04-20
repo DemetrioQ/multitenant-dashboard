@@ -3,7 +3,6 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ShoppingCart, MailCheck, MailX } from 'lucide-react'
 import { getCustomer, type CustomerDetail } from '../api/customers'
 import type { OrderStatus } from '../api/orders'
-import { useAuth } from '../hooks/useAuth'
 import { formatMoney, formatDate } from '../utils/format'
 
 const STATUS_BADGE: Record<OrderStatus, string> = {
@@ -29,8 +28,6 @@ function displayName(c: CustomerDetail): string {
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { tenantCurrency } = useAuth()
-
   const { data: customer, isLoading, error } = useQuery<CustomerDetail>({
     queryKey: ['customer', id],
     queryFn: () => getCustomer(id!),
@@ -96,7 +93,7 @@ export function CustomerDetailPage() {
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <p className="text-sm font-medium text-gray-400 mb-1">Lifetime spend</p>
-          <p className="text-2xl font-bold text-white font-mono">{formatMoney(customer.lifetimeSpend, tenantCurrency)}</p>
+          <p className="text-2xl font-bold text-white font-mono">{formatMoney(customer.lifetimeSpend)}</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
           <p className="text-sm font-medium text-gray-400 mb-1">Joined</p>
@@ -137,7 +134,7 @@ export function CustomerDetailPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
-                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total, tenantCurrency)}</td>
+                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total)}</td>
                     <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
                   </tr>
                 ))}
@@ -159,7 +156,7 @@ export function CustomerDetailPage() {
                   </div>
                   <div className="flex items-center justify-between mt-2 text-xs">
                     <span className="text-gray-500">{formatDate(o.createdAt)}</span>
-                    <span className="text-white font-mono">{formatMoney(o.total, tenantCurrency)}</span>
+                    <span className="text-white font-mono">{formatMoney(o.total)}</span>
                   </div>
                 </Link>
               ))}
