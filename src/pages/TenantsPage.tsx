@@ -149,8 +149,6 @@ function AllTenantsView() {
     try {
       await updateTenant(editing.id, {
         name: editName,
-        timezone: editing.timezone,
-        currency: editing.currency,
         supportEmail: editing.supportEmail,
         websiteUrl: editing.websiteUrl,
       })

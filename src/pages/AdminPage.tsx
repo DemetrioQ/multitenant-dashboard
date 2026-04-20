@@ -156,8 +156,8 @@ function SignupsChart() {
                 contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1f2937', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: '#9ca3af' }}
                 itemStyle={{ color: '#fff' }}
-                labelFormatter={(v: string) => new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                formatter={(value: number) => [value, entity === 'tenants' ? 'Tenants' : entity === 'users' ? 'Users' : 'Customers']}
+                labelFormatter={(v) => new Date(v as string).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                formatter={(value) => [String(value), entity === 'tenants' ? 'Tenants' : entity === 'users' ? 'Users' : 'Customers'] as [string, string]}
               />
               <Area
                 type="monotone"
