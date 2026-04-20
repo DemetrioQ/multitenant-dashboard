@@ -35,7 +35,7 @@ export function Layout() {
     }`
 
   return (
-    <div className="flex h-screen bg-gray-950 overflow-hidden">
+    <div className="flex h-[100dvh] bg-gray-950 overflow-hidden">
       {/* Mobile backdrop */}
       {drawerOpen && (
         <div
@@ -170,7 +170,7 @@ export function Layout() {
           <span className="text-sm font-semibold text-white tracking-tight">SaaS Dashboard</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overscroll-contain">
           <Outlet />
         </main>
       </div>

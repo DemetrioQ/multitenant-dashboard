@@ -1,9 +1,20 @@
 @import "tailwindcss";
 
 @layer base {
+  html, body {
+    background: #030712; /* gray-950, matches Layout bg */
+    overscroll-behavior: none;
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+/* Prevent iOS Safari from zooming when focusing inputs with < 16px font */
+@media (max-width: 640px) {
+  input, textarea, select {
+    font-size: 16px !important;
   }
 }
 
