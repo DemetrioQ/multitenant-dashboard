@@ -1,24 +1,41 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+/* ── Design tokens ────────────────────────────────────────────────────────
+   Semantic brand tokens. Tailwind v4 auto-generates utilities from these
+   (e.g. `bg-brand`, `hover:bg-brand-hover`, `ring-brand`, `text-brand`).
+
+   To re-skin for saas-storefront: copy this @theme block verbatim; change
+   --color-brand and --color-brand-hover to the storefront's accent color.
+   Everything else (surfaces, status colors) is platform-neutral and stays. */
+@theme {
+  --color-brand: #4f46e5; /* indigo-600 — primary actions, focus rings, links */
+  --color-brand-hover: #6366f1; /* indigo-500 — hover state for brand surfaces */
+}
 
 @layer base {
-  html, body {
+  html,
+  body {
     background: #030712; /* gray-950, matches Layout bg */
     overscroll-behavior: none;
   }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role='button']:not(:disabled) {
     cursor: pointer;
   }
 }
 
 /* Prevent iOS Safari from zooming when focusing inputs with < 16px font */
 @media (max-width: 640px) {
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     font-size: 16px !important;
   }
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -26,15 +43,61 @@
 
 /* Interactive elements: kill the iOS touch-callout (which can eat taps) and
    skip the 300ms click delay so buttons fire reliably on mobile. */
-button, a, [role="button"], label,
-input[type="submit"], input[type="button"], input[type="reset"], input[type="checkbox"], input[type="radio"] {
+button,
+a,
+[role='button'],
+label,
+input[type='submit'],
+input[type='button'],
+input[type='reset'],
+input[type='checkbox'],
+input[type='radio'] {
   -webkit-touch-callout: none;
   touch-action: manipulation;
 }
 
-p, li, td, th, code, pre, h1, h2, h3, h4, h5, h6, label,
-input, textarea, select, [contenteditable="true"], [contenteditable=""],
-.select-text, [data-selectable] {
+p,
+li,
+td,
+th,
+code,
+pre,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+input,
+textarea,
+select,
+[contenteditable='true'],
+[contenteditable=''],
+.select-text,
+[data-selectable] {
   -webkit-user-select: text;
   user-select: text;
+}
+
+@keyframes fetchbar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
