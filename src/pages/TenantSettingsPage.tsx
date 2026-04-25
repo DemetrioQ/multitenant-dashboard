@@ -6,7 +6,7 @@ import { getTenantMe, updateTenant } from '../api/tenants'
 import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
-import { formatDate } from '../utils/format'
+import { formatDate, safeHttpHref } from '../utils/format'
 import { PageLoading } from '../components/PageStates'
 import { Badge, Button, Card, FieldError, Input, Label } from '../components/ui'
 
@@ -165,13 +165,13 @@ export function TenantSettingsPage() {
                     },
                   ]
                 : []),
-              ...(tenant.websiteUrl
+              ...(safeHttpHref(tenant.websiteUrl)
                 ? [
                     {
                       label: 'Website',
                       value: (
                         <a
-                          href={tenant.websiteUrl}
+                          href={safeHttpHref(tenant.websiteUrl)!}
                           target="_blank"
                           rel="noreferrer"
                           className="text-brand hover:text-brand-hover flex items-center gap-1.5 justify-end"

@@ -19,9 +19,11 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { ErrorBoundary } from './ErrorBoundary'
 import { FetchingBar } from './PageStates'
+import { safeHttpHref } from '../utils/format'
 
 export function Layout() {
   const { tenantName, tenantSlug, storeUrl, avatarUrl, isAdmin, isSuperAdmin, signOut } = useAuth()
+  const safeStoreUrl = safeHttpHref(storeUrl)
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -89,15 +91,15 @@ export function Layout() {
             ) : tenantName || tenantSlug ? (
               <>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{tenantName ?? tenantSlug}</p>
-                {storeUrl && (
+                {safeStoreUrl && (
                   <a
-                    href={storeUrl}
+                    href={safeStoreUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    title={storeUrl}
+                    title={safeStoreUrl}
                     className="mt-1 inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 transition-colors max-w-full"
                   >
-                    <span className="truncate">{storeUrl.replace(/^https?:\/\//, '')}</span>
+                    <span className="truncate">{safeStoreUrl.replace(/^https?:\/\//, '')}</span>
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                   </a>
                 )}
