@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Circle, CheckCheck } from 'lucide-react'
 import { getOnboarding, type OnboardingStatus } from '../api/tenants'
+import { Card } from './ui'
 
 type View = 'loading' | 'checklist' | 'complete' | 'hidden'
 
@@ -54,7 +55,7 @@ export function OnboardingChecklist() {
   ]
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <Card className="p-6">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-4">Get started</p>
       <ul className="space-y-3">
         {items.map(({ label, done, path }) => (
@@ -69,7 +70,7 @@ export function OnboardingChecklist() {
             ) : (
               <button
                 onClick={() => navigate(path)}
-                className="text-sm text-indigo-400 hover:text-indigo-300 hover:underline text-left"
+                className="text-sm text-brand hover:text-brand-hover hover:underline text-left"
               >
                 {label}
               </button>
@@ -77,6 +78,6 @@ export function OnboardingChecklist() {
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   )
 }

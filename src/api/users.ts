@@ -29,8 +29,7 @@ export interface UsersResult {
 export const getUsers = (page = 1, pageSize = 20) =>
   apiClient.get<UsersResult>('/api/v1/users', { params: { page, pageSize } }).then((r) => r.data)
 
-export const getMe = () =>
-  apiClient.get<UserProfile>('/api/v1/users/me').then((r) => r.data)
+export const getMe = () => apiClient.get<UserProfile>('/api/v1/users/me').then((r) => r.data)
 
 export const updateMe = (data: {
   firstName: string | null
@@ -42,5 +41,4 @@ export const updateMe = (data: {
 export const updateUserRole = (id: string, role: string) =>
   apiClient.put(`/api/v1/users/${id}/role`, { role })
 
-export const deactivateUser = (id: string) =>
-  apiClient.delete(`/api/v1/users/${id}`)
+export const deactivateUser = (id: string) => apiClient.delete(`/api/v1/users/${id}`)

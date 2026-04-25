@@ -21,7 +21,11 @@ export const getConnectStatus = () =>
   apiClient.get<PaymentsConnectStatus>('/api/v1/payments/connect/status').then((r) => r.data)
 
 export const startConnectOnboarding = (refreshUrl: string, returnUrl: string) =>
-  apiClient.post<OnboardingLink>('/api/v1/payments/connect/onboarding', { refreshUrl, returnUrl }).then((r) => r.data)
+  apiClient
+    .post<OnboardingLink>('/api/v1/payments/connect/onboarding', { refreshUrl, returnUrl })
+    .then((r) => r.data)
 
 export const refreshConnectStatus = () =>
-  apiClient.post<PaymentsConnectStatus>('/api/v1/payments/connect/refresh-status').then((r) => r.data)
+  apiClient
+    .post<PaymentsConnectStatus>('/api/v1/payments/connect/refresh-status')
+    .then((r) => r.data)

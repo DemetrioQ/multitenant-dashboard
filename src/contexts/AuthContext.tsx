@@ -24,9 +24,11 @@ function decodeRole(token: string): string | null {
 
 function decodeUserId(token: string): string | null {
   const p = decodePayload(token)
-  return (p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] as string)
-    ?? (p['sub'] as string)
-    ?? null
+  return (
+    (p['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] as string) ??
+    (p['sub'] as string) ??
+    null
+  )
 }
 
 interface AuthCoreState {
@@ -45,7 +47,7 @@ interface AuthContextType {
   role: string | null
   avatarUrl: string | null
   isAuthenticated: boolean
-  isAdmin: boolean      // true for 'admin' and 'super-admin'
+  isAdmin: boolean // true for 'admin' and 'super-admin'
   isSuperAdmin: boolean // true only for 'super-admin' (platform-level account)
   signIn: (token: string, tenantSlug?: string) => void
   signOut: () => void
@@ -139,25 +141,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ token: null, userId: null, role: null, isAuthenticated: false })
   }
 
-  if (!bootstrapped) return null
+  if (!bootstrapped) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
+        <p className="text-gray-500 text-sm">Loading…</p>
+      </div>
+    )
+  }
 
   const tenantSlugFallback = localStorage.getItem('tenantSlug')
 
   return (
-    <AuthContext.Provider value={{
-      token: state.token,
-      userId: state.userId,
-      role: state.role,
-      isAuthenticated: state.isAuthenticated,
-      tenantName: tenantData?.name ?? null,
-      tenantSlug: tenantData?.slug ?? tenantSlugFallback,
-      storeUrl: tenantData?.storeUrl ?? null,
-      avatarUrl: profileData?.avatarUrl ?? null,
-      isAdmin: state.role === 'admin' || state.role === 'super-admin',
-      isSuperAdmin: state.role === 'super-admin',
-      signIn,
-      signOut,
-    }}>
+    <AuthContext.Provider
+      value={{
+        token: state.token,
+        userId: state.userId,
+        role: state.role,
+        isAuthenticated: state.isAuthenticated,
+        tenantName: tenantData?.name ?? null,
+        tenantSlug: tenantData?.slug ?? tenantSlugFallback,
+        storeUrl: tenantData?.storeUrl ?? null,
+        avatarUrl: profileData?.avatarUrl ?? null,
+        isAdmin: state.role === 'admin' || state.role === 'super-admin',
+        isSuperAdmin: state.role === 'super-admin',
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

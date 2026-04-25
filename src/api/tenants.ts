@@ -20,8 +20,7 @@ export interface TenantWithMetrics extends Tenant {
 export const getTenants = () =>
   apiClient.get<TenantWithMetrics[]>('/api/v1/tenants').then((r) => r.data)
 
-export const getTenantMe = () =>
-  apiClient.get<Tenant>('/api/v1/tenants/me').then((r) => r.data)
+export const getTenantMe = () => apiClient.get<Tenant>('/api/v1/tenants/me').then((r) => r.data)
 
 export const getTenant = (id: string) =>
   apiClient.get<Tenant>(`/api/v1/tenants/${id}`).then((r) => r.data)
@@ -33,14 +32,16 @@ export interface CreateTenantResponse {
 export const createTenant = (name: string, slug: string) =>
   apiClient.post<CreateTenantResponse>('/api/v1/tenants', { name, slug }).then((r) => r.data)
 
-export const updateTenant = (id: string, data: {
-  name: string
-  supportEmail: string | null
-  websiteUrl: string | null
-}) => apiClient.put(`/api/v1/tenants/${id}`, data)
+export const updateTenant = (
+  id: string,
+  data: {
+    name: string
+    supportEmail: string | null
+    websiteUrl: string | null
+  },
+) => apiClient.put(`/api/v1/tenants/${id}`, data)
 
-export const deactivateTenant = (id: string) =>
-  apiClient.delete(`/api/v1/tenants/${id}`)
+export const deactivateTenant = (id: string) => apiClient.delete(`/api/v1/tenants/${id}`)
 
 export interface RecentActivity {
   action: string

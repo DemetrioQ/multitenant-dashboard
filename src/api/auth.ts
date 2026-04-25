@@ -13,9 +13,21 @@ export const login = (slug: string, email: string, password: string) =>
   apiClient.post<AuthResponse>('/api/v1/auth/login', { slug, email, password }).then((r) => r.data)
 
 // tenantId must come from POST /api/tenants first
-export const register = (tenantId: string, email: string, password: string, firstName: string, lastName: string) =>
+export const register = (
+  tenantId: string,
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+) =>
   apiClient
-    .post<RegisterResponse>('/api/v1/auth/register', { tenantId, email, password, firstName, lastName })
+    .post<RegisterResponse>('/api/v1/auth/register', {
+      tenantId,
+      email,
+      password,
+      firstName,
+      lastName,
+    })
     .then((r) => r.data)
 
 export const verifyEmail = (token: string) =>
@@ -24,8 +36,7 @@ export const verifyEmail = (token: string) =>
 export const refreshSession = () =>
   apiClient.post<AuthResponse>('/api/v1/auth/refresh', null).then((r) => r.data)
 
-export const logout = () =>
-  apiClient.post('/api/v1/auth/logout')
+export const logout = () => apiClient.post('/api/v1/auth/logout')
 
 export const forgotPassword = (slug: string, email: string) =>
   apiClient.post('/api/v1/auth/forgot-password', { slug, email })

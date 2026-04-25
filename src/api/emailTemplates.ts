@@ -53,4 +53,6 @@ export const revertEmailTemplate = (type: EmailTemplateType) =>
   apiClient.delete(`/api/v1/email-templates/${type}`)
 
 export const previewEmailTemplate = (type: EmailTemplateType, data: EmailTemplateUpdate) =>
-  apiClient.post<EmailTemplatePreview>(`/api/v1/email-templates/${type}/preview`, data).then((r) => r.data)
+  apiClient
+    .post<EmailTemplatePreview>(`/api/v1/email-templates/${type}/preview`, data)
+    .then((r) => r.data)

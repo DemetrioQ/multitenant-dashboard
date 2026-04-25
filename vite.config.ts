@@ -29,7 +29,8 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           let handler: ((req: Request) => Promise<Response>) | null = null
 
-          server.middlewares.use('/api/uploadthing', async (req: any, res: any, _next: any) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          server.middlewares.use('/api/uploadthing', async (req: any, res: any) => {
             try {
               if (!handler) {
                 const { createRouteHandler } = await import('uploadthing/server')

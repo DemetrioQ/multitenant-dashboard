@@ -1,12 +1,33 @@
 export const BASE_URL = import.meta.env.VITE_API_URL_BROWSER ?? ''
 
-export class ApiError extends Error {
-  response: { status: number; data: any; headers: Record<string, string> }
+export interface ApiErrorPayload {
+  detail?: string
+  errors?: Record<string, string[]>
+  errorCode?: string
+  [key: string]: unknown
+}
 
-  constructor(status: number, data: any, headers: Record<string, string>) {
+export class ApiError extends Error {
+  response: { status: number; data: ApiErrorPayload | undefined; headers: Record<string, string> }
+
+  constructor(status: number, data: ApiErrorPayload | undefined, headers: Record<string, string>) {
     super(`Request failed with status ${status}`)
     this.response = { status, data, headers }
   }
+}
+
+export function isApiError(err: unknown): err is ApiError {
+  return err instanceof ApiError
+}
+
+/**
+ * Pull a user-facing error message out of any thrown value.
+ * Use this in `catch` blocks instead of casting `(err: any).response?.data?.detail`.
+ */
+export function getErrorMessage(err: unknown, fallback = 'Something went wrong.'): string {
+  if (isApiError(err)) return err.response.data?.detail ?? fallback
+  if (err instanceof Error) return err.message || fallback
+  return fallback
 }
 
 // Prevent concurrent or repeated refresh attempts
@@ -56,9 +77,7 @@ async function send<T>(
 ): Promise<{ data: T }> {
   let path = BASE_URL + url
   if (params && Object.keys(params).length > 0) {
-    path += '?' + new URLSearchParams(
-      Object.entries(params).map(([k, v]) => [k, String(v)]),
-    )
+    path += '?' + new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))
   }
 
   const headers: Record<string, string> = {}
@@ -96,10 +115,7 @@ async function send<T>(
 export const apiClient = {
   get: <T>(url: string, options?: { params?: Record<string, string | number> }) =>
     send<T>('GET', url, undefined, options?.params),
-  post: <T>(url: string, body?: unknown) =>
-    send<T>('POST', url, body),
-  put: <T>(url: string, body?: unknown) =>
-    send<T>('PUT', url, body),
-  delete: <T>(url: string) =>
-    send<T>('DELETE', url),
+  post: <T>(url: string, body?: unknown) => send<T>('POST', url, body),
+  put: <T>(url: string, body?: unknown) => send<T>('PUT', url, body),
+  delete: <T>(url: string) => send<T>('DELETE', url),
 }

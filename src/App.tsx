@@ -2,6 +2,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { AuthProvider } from './contexts/AuthContext'
 import { AppRouter } from './router'
 import { queryClient, persister } from './lib/queryClient'
+import { ToastProvider } from './components/ui'
 
 export default function App() {
   return (
@@ -9,9 +10,11 @@ export default function App() {
       client={queryClient}
       persistOptions={{ persister, maxAge: 1000 * 60 * 60 * 24 }}
     >
-      <AuthProvider>
-        <AppRouter />
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppRouter />
+        </AuthProvider>
+      </ToastProvider>
     </PersistQueryClientProvider>
   )
 }

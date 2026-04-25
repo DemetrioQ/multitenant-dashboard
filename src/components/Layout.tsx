@@ -1,11 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Package, Users, LogOut, ShieldCheck,
-  Settings, UserCircle, ClipboardList, Building2,
-  ShoppingCart, UserCheck, ExternalLink, Menu, X,
+  LayoutDashboard,
+  Package,
+  Users,
+  LogOut,
+  ShieldCheck,
+  Settings,
+  UserCircle,
+  ClipboardList,
+  Building2,
+  ShoppingCart,
+  UserCheck,
+  ExternalLink,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { ErrorBoundary } from './ErrorBoundary'
+import { FetchingBar } from './PageStates'
 
 export function Layout() {
   const { tenantName, tenantSlug, storeUrl, avatarUrl, isAdmin, isSuperAdmin, signOut } = useAuth()
@@ -14,9 +27,13 @@ export function Layout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
 
-  // Close drawer + reset scroll on route change
+  // Close drawer on route change
   useEffect(() => {
     setDrawerOpen(false)
+  }, [location.pathname])
+
+  // Reset scroll before paint so it doesn't race with content mount
+  useLayoutEffect(() => {
     mainRef.current?.scrollTo({ top: 0, left: 0 })
   }, [location.pathname])
 
@@ -24,7 +41,9 @@ export function Layout() {
   useEffect(() => {
     if (drawerOpen) {
       document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = '' }
+      return () => {
+        document.body.style.overflow = ''
+      }
     }
   }, [drawerOpen])
 
@@ -67,7 +86,7 @@ export function Layout() {
               <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30">
                 <ShieldCheck className="w-3 h-3" /> Super Admin
               </span>
-            ) : (tenantName || tenantSlug) ? (
+            ) : tenantName || tenantSlug ? (
               <>
                 <p className="text-xs text-gray-500 mt-0.5 truncate">{tenantName ?? tenantSlug}</p>
                 {storeUrl && (
@@ -144,7 +163,11 @@ export function Layout() {
           {!isSuperAdmin && (
             <NavLink to="/settings/profile" className={navClass}>
               {avatarUrl ? (
-                <img src={avatarUrl} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0" />
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                />
               ) : (
                 <UserCircle className="w-4 h-4 flex-shrink-0" />
               )}
@@ -175,8 +198,11 @@ export function Layout() {
         </header>
 
         <main ref={mainRef} className="flex-1 overflow-y-auto overscroll-contain">
-          <Outlet />
+          <ErrorBoundary resetKey={location.pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </main>
+        <FetchingBar />
       </div>
     </div>
   )
