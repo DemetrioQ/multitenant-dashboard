@@ -51,7 +51,7 @@ export function AuditPage() {
   if (!isAdmin) return <Navigate to="/dashboard" replace />
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-3">
           <ClipboardList className="w-5 h-5 text-gray-400" />
@@ -83,19 +83,19 @@ export function AuditPage() {
               <table className="w-full min-w-[600px]">
                 <thead>
                   <tr className="border-b border-gray-800 bg-gray-800/40">
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Action
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Entity
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Details
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       When
                     </th>
                   </tr>
@@ -103,15 +103,15 @@ export function AuditPage() {
                 <tbody className="divide-y divide-gray-800">
                   {entries.map((e) => (
                     <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
-                      <td className="px-6 py-4 text-sm text-white">{e.userEmail}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 text-sm text-white">{e.userEmail}</td>
+                      <td className="px-4 py-4">
                         <ActionBadge action={e.action} />
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-400">{e.entityType}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">
+                      <td className="px-4 py-4 text-sm text-gray-400">{e.entityType}</td>
+                      <td className="px-4 py-4 text-sm text-gray-300 max-w-xs truncate">
                         {e.details ?? '—'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm text-gray-400 whitespace-nowrap">
                         {formatDateTime(e.createdAt)}
                       </td>
                     </tr>

@@ -33,16 +33,14 @@
   }
 }
 
+/* Mobile UX — kill the blue tap flash on touch devices for everything,
+   and disable the iOS touch-callout / 300ms click delay on interactive elements. */
 *,
 *::before,
 *::after {
-  -webkit-user-select: none;
-  user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Interactive elements: kill the iOS touch-callout (which can eat taps) and
-   skip the 300ms click delay so buttons fire reliably on mobile. */
 button,
 a,
 [role='button'],
@@ -56,28 +54,19 @@ input[type='radio'] {
   touch-action: manipulation;
 }
 
-p,
-li,
-td,
-th,
-code,
-pre,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-label,
-input,
-textarea,
-select,
-[contenteditable='true'],
-[contenteditable=''],
-.select-text,
-[data-selectable] {
-  -webkit-user-select: text;
-  user-select: text;
+/* Disable text selection on UI chrome where dragging would be a misclick.
+   Body content (paragraphs, tables, headings, form fields) keeps the browser
+   default of `user-select: auto`, so users can copy text and the cursor
+   doesn't snap to the nearest text element when clicking in empty regions. */
+button,
+a,
+[role='button'],
+nav,
+header,
+aside,
+.select-none {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 @keyframes fetchbar {
