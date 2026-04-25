@@ -1,6 +1,10 @@
 # Claude Code
 .claude/
-CLAUDE.md
+
+# Markdown — README.md (at any depth) is the only doc we publish.
+# Internal docs (CHANGELOG, DESIGN, MIGRATION, CLAUDE.md, etc.) stay local.
+*.md
+!README.md
 
 # Dependencies
 node_modules/
