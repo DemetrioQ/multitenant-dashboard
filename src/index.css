@@ -54,19 +54,42 @@ input[type='radio'] {
   touch-action: manipulation;
 }
 
-/* Disable text selection on UI chrome where dragging would be a misclick.
-   Body content (paragraphs, tables, headings, form fields) keeps the browser
-   default of `user-select: auto`, so users can copy text and the cursor
-   doesn't snap to the nearest text element when clicking in empty regions. */
-button,
-a,
-[role='button'],
-nav,
-header,
-aside,
-.select-none {
+/* Selection model.
+
+   Default the page to `user-select: none` so clicking the empty space inside
+   any container (form-box, card, page background) does NOT drop a document
+   selection caret at the nearest text node. That stray caret reads as
+   "caret appearing on the edge of the input" — it's actually a selection
+   range collapsed onto the nearest label/heading text inside the same
+   user-select: text region, snapping to whatever text is closest to the
+   click point.
+
+   Re-enable text selection on the things users actually want to copy:
+   readable body text (p/headings/lists/tables/code) and form fields. */
+html {
   -webkit-user-select: none;
   user-select: none;
+}
+
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+td,
+th,
+code,
+pre,
+input,
+textarea,
+[contenteditable='true'],
+[contenteditable=''],
+.select-text {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 @keyframes fetchbar {
