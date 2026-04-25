@@ -3,25 +3,30 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Package, CheckCircle2, XCircle } from 'lucide-react'
 import {
-  getOrder, fulfillOrder, cancelOrder,
-  type OrderDetail, type OrderStatus,
+  getOrder,
+  fulfillOrder,
+  cancelOrder,
+  type OrderDetail,
+  type OrderStatus,
 } from '../api/orders'
 import { useAuth } from '../hooks/useAuth'
 import { formatMoney, formatDateTime } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, type BadgeProps, Button, Card, useConfirm } from '../components/ui'
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  pending:   'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  paid:      'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-  fulfilled: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  canceled:  'bg-gray-800 text-gray-500 border-gray-700',
-  refunded:  'bg-rose-500/15 text-rose-400 border-rose-500/30',
+const STATUS_VARIANT: Record<OrderStatus, BadgeProps['variant']> = {
+  pending: 'warning',
+  paid: 'info',
+  fulfilled: 'success',
+  canceled: 'muted',
+  refunded: 'rose',
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border capitalize ${STATUS_BADGE[status]}`}>
+    <Badge variant={STATUS_VARIANT[status]} className="capitalize px-2.5 py-1">
       {status}
-    </span>
+    </Badge>
   )
 }
 
@@ -45,8 +50,13 @@ export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
+  const { confirm, dialog } = useConfirm()
 
-  const { data: order, isLoading, error } = useQuery({
+  const {
+    data: order,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['order', id],
     queryFn: () => getOrder(id!),
     enabled: !!id,
@@ -60,7 +70,7 @@ export function OrderDetailPage() {
   if (showSpinner) {
     return (
       <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-        <p className="text-gray-500 text-sm">Loading…</p>
+        <PageLoading className="py-8" />
       </div>
     )
   }
@@ -68,7 +78,10 @@ export function OrderDetailPage() {
   if (error || !order) {
     return (
       <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-        <Link to="/orders" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+        <Link
+          to="/orders"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to orders
         </Link>
         <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
@@ -87,7 +100,12 @@ export function OrderDetailPage() {
   }
 
   const doFulfill = async () => {
-    if (!confirm(`Mark order ${order.number} as fulfilled?`)) return
+    const ok = await confirm({
+      title: 'Mark fulfilled?',
+      message: `Order ${order.number} will be marked as fulfilled. The customer will be notified.`,
+      confirmLabel: 'Mark fulfilled',
+    })
+    if (!ok) return
     setActionLoading('fulfill')
     setActionError(null)
     try {
@@ -101,7 +119,14 @@ export function OrderDetailPage() {
   }
 
   const doCancel = async () => {
-    if (!confirm(`Cancel order ${order.number}? Stock will be restored.`)) return
+    const ok = await confirm({
+      title: 'Cancel order?',
+      message: `Order ${order.number} will be canceled and stock restored.`,
+      destructive: true,
+      confirmLabel: 'Cancel order',
+      cancelLabel: 'Keep order',
+    })
+    if (!ok) return
     setActionLoading('cancel')
     setActionError(null)
     try {
@@ -116,15 +141,19 @@ export function OrderDetailPage() {
 
   const shipping = shippingLines(order)
   const timestamps: [string, string | null][] = [
-    ['Created',   order.createdAt],
-    ['Paid',      order.paidAt],
+    ['Created', order.createdAt],
+    ['Paid', order.paidAt],
     ['Fulfilled', order.fulfilledAt],
-    ['Canceled',  order.canceledAt],
+    ['Canceled', order.canceledAt],
   ]
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-      <Link to="/orders" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+      {dialog}
+      <Link
+        to="/orders"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+      >
         <ArrowLeft className="w-4 h-4" /> Back to orders
       </Link>
 
@@ -138,45 +167,52 @@ export function OrderDetailPage() {
         </div>
         <div className="flex gap-2">
           {canFulfill && (
-            <button
+            <Button
               onClick={doFulfill}
               disabled={actionLoading !== null}
-              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="bg-emerald-600 hover:bg-emerald-500"
             >
               <CheckCircle2 className="w-4 h-4" />
               {actionLoading === 'fulfill' ? 'Fulfilling…' : 'Mark fulfilled'}
-            </button>
+            </Button>
           )}
           {canCancel && (
-            <button
+            <Button
+              variant="secondary"
               onClick={doCancel}
               disabled={actionLoading !== null}
-              className="inline-flex items-center gap-2 bg-gray-800 hover:bg-red-950 border border-gray-700 hover:border-red-900/60 text-gray-300 hover:text-red-400 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="hover:bg-red-950 hover:border-red-900/60 hover:text-red-400"
             >
               <XCircle className="w-4 h-4" />
               {actionLoading === 'cancel' ? 'Canceling…' : 'Cancel order'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {actionError && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{actionError}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          {actionError}
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 lg:col-span-2">
+        <Card className="p-5 lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <Package className="w-4 h-4 text-gray-500" />
             <h2 className="text-sm font-medium text-white">Line items</h2>
           </div>
           <ul className="divide-y divide-gray-800">
             {order.items.map((it, i) => (
-              <li key={i} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+              <li
+                key={i}
+                className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0"
+              >
                 <div>
                   <p className="text-sm text-white">{it.productName}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {it.productSku ? `SKU ${it.productSku} · ` : ''}{formatMoney(it.unitPrice)} × {it.quantity}
+                    {it.productSku ? `SKU ${it.productSku} · ` : ''}
+                    {formatMoney(it.unitPrice)} × {it.quantity}
                   </p>
                 </div>
                 <span className="text-sm font-mono text-white whitespace-nowrap">
@@ -197,63 +233,73 @@ export function OrderDetailPage() {
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-400">
-                Platform fee ({(order.platformFeePercent * 100).toFixed(order.platformFeePercent < 0.01 ? 2 : 0)}%)
+                Platform fee (
+                {(order.platformFeePercent * 100).toFixed(order.platformFeePercent < 0.01 ? 2 : 0)}
+                %)
               </span>
-              <span className="text-rose-400 font-mono">−{formatMoney(order.platformFeeAmount)}</span>
+              <span className="text-rose-400 font-mono">
+                −{formatMoney(order.platformFeeAmount)}
+              </span>
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-gray-800">
               <div>
                 <span className="text-sm font-medium text-white">Your net</span>
                 <span className="block text-xs text-gray-500">before Stripe processing fees</span>
               </div>
-              <span className="text-lg font-semibold text-emerald-400 font-mono">{formatMoney(order.netAmount)}</span>
+              <span className="text-lg font-semibold text-emerald-400 font-mono">
+                {formatMoney(order.netAmount)}
+              </span>
             </div>
           </div>
-        </div>
+        </Card>
 
         <div className="space-y-4">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <Card className="p-5">
             <h2 className="text-sm font-medium text-white mb-3">Customer</h2>
             <Link
               to={`/customers/${order.customer.id}`}
-              className="block text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+              className="block text-sm text-brand hover:text-brand-hover font-medium"
             >
               {customerLabel(order.customer)}
             </Link>
             <p className="text-xs text-gray-500 mt-0.5">{order.customer.email}</p>
-          </div>
+          </Card>
 
           {shipping.length > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <Card className="p-5">
               <h2 className="text-sm font-medium text-white mb-3">Shipping</h2>
               <div className="space-y-0.5">
                 {shipping.map((line, i) => (
-                  <p key={i} className="text-sm text-gray-300">{line}</p>
+                  <p key={i} className="text-sm text-gray-300">
+                    {line}
+                  </p>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
 
           {order.paymentProvider && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+            <Card className="p-5">
               <h2 className="text-sm font-medium text-white mb-3">Payment</h2>
               <p className="text-sm text-gray-300 capitalize">{order.paymentProvider}</p>
-            </div>
+            </Card>
           )}
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <Card className="p-5">
         <h2 className="text-sm font-medium text-white mb-3">Timeline</h2>
         <ul className="space-y-2">
-          {timestamps.filter(([, v]) => !!v).map(([label, value]) => (
-            <li key={label} className="flex items-center justify-between text-sm">
-              <span className="text-gray-400">{label}</span>
-              <span className="text-gray-300">{formatDateTime(value!)}</span>
-            </li>
-          ))}
+          {timestamps
+            .filter(([, v]) => !!v)
+            .map(([label, value]) => (
+              <li key={label} className="flex items-center justify-between text-sm">
+                <span className="text-gray-400">{label}</span>
+                <span className="text-gray-300">{formatDateTime(value!)}</span>
+              </li>
+            ))}
         </ul>
-      </div>
+      </Card>
     </div>
   )
 }

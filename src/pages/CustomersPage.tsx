@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { Users, ChevronLeft, ChevronRight, ExternalLink, MailCheck, MailX } from 'lucide-react'
 import { getCustomers, type CustomerSummary } from '../api/customers'
 import { formatMoney, formatDate } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Card, IconButton } from '../components/ui'
 
 const PAGE_SIZE = 20
 
@@ -41,64 +43,84 @@ export function CustomersPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load customers.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load customers.
+        </div>
       )}
 
       {showSpinner ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading…</p>
-        </div>
+        <PageLoading boxed />
       ) : customers.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+        <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <Users className="w-8 h-8 text-gray-700" />
           <p className="text-gray-500 text-sm">No customers yet.</p>
-        </div>
+        </Card>
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Orders</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Lifetime spend</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Joined</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {customers.map((c) => (
-                  <tr key={c.id} className={`hover:bg-gray-800/30 transition-colors ${!c.isActive ? 'opacity-60' : ''}`}>
-                    <td className="px-6 py-4 text-sm font-medium text-white">{customerName(c)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400">
-                      <span className="inline-flex items-center gap-1.5">
-                        {c.email}
-                        {c.isEmailVerified ? (
-                          <MailCheck className="w-3.5 h-3.5 text-emerald-400" />
-                        ) : (
-                          <MailX className="w-3.5 h-3.5 text-gray-600" />
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">{c.orderCount}</td>
-                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(c.lifetimeSpend)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400">{formatDate(c.createdAt)}</td>
-                    <td className="px-6 py-4 text-right">
-                      <Link
-                        to={`/customers/${c.id}`}
-                        className="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 text-sm font-medium"
-                      >
-                        View <ExternalLink className="w-3.5 h-3.5" />
-                      </Link>
-                    </td>
+          <Card className="hidden sm:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Orders
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Lifetime spend
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Joined
+                    </th>
+                    <th className="px-6 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {customers.map((c) => (
+                    <tr
+                      key={c.id}
+                      className={`hover:bg-gray-800/30 transition-colors ${!c.isActive ? 'opacity-60' : ''}`}
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-white">
+                        {customerName(c)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">
+                        <span className="inline-flex items-center gap-1.5">
+                          {c.email}
+                          {c.isEmailVerified ? (
+                            <MailCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <MailX className="w-3.5 h-3.5 text-gray-600" />
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">
+                        {c.orderCount}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-white font-mono text-right">
+                        {formatMoney(c.lifetimeSpend)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{formatDate(c.createdAt)}</td>
+                      <td className="px-6 py-4 text-right">
+                        <Link
+                          to={`/customers/${c.id}`}
+                          className="inline-flex items-center gap-1 text-brand hover:text-brand-hover text-sm font-medium"
+                        >
+                          View <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </Card>
 
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
@@ -144,22 +166,24 @@ export function CustomersPage() {
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-400">Page {pageParam} of {totalPages}</p>
+          <p className="text-sm text-gray-400">
+            Page {pageParam} of {totalPages}
+          </p>
           <div className="flex gap-2">
-            <button
+            <IconButton
               onClick={() => changePage(Math.max(1, pageParam - 1))}
               disabled={pageParam === 1}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               onClick={() => changePage(Math.min(totalPages, pageParam + 1))}
               disabled={pageParam === totalPages}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </IconButton>
           </div>
         </div>
       )}

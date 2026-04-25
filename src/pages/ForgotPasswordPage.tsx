@@ -2,14 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { forgotPassword } from '../api/auth'
 import { useRateLimit, formatCountdown, retryAfterSecs } from '../hooks/useRateLimit'
-
-function fieldClass(error: string) {
-  return `block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
-    error
-      ? 'border-red-500 focus:ring-red-500'
-      : 'border-gray-700 focus:ring-indigo-500'
-  }`
-}
+import { Button, Input, Label } from '../components/ui'
 
 export function ForgotPasswordPage() {
   const [slug, setSlug] = useState('')
@@ -50,12 +43,12 @@ export function ForgotPasswordPage() {
             <div className="text-center space-y-3">
               <p className="text-white font-medium">Check your email</p>
               <p className="text-gray-400 text-sm">
-                If an account exists for <span className="text-white">{email}</span>, you'll
-                receive a password reset link shortly.
+                If an account exists for <span className="text-white">{email}</span>, you'll receive
+                a password reset link shortly.
               </p>
               <Link
                 to="/login"
-                className="inline-block mt-2 text-indigo-400 hover:text-indigo-300 text-sm transition-colors"
+                className="inline-block mt-2 text-brand hover:text-brand-hover text-sm transition-colors"
               >
                 Back to sign in
               </Link>
@@ -63,25 +56,25 @@ export function ForgotPasswordPage() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">Company slug</label>
-                <input
+                <Label htmlFor="slug">Company slug</Label>
+                <Input
+                  id="slug"
                   type="text"
                   required
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   placeholder="acme-corp"
-                  className={fieldClass('')}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">Email</label>
-                <input
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className={fieldClass('')}
                 />
               </div>
 
@@ -96,16 +89,12 @@ export function ForgotPasswordPage() {
                 </p>
               )}
 
-              <button
-                type="submit"
-                disabled={loading || rateLimit.isLimited}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
-              >
+              <Button type="submit" disabled={loading || rateLimit.isLimited} className="w-full">
                 {loading ? 'Sending…' : 'Send reset link'}
-              </button>
+              </Button>
 
               <p className="text-center text-sm text-gray-400">
-                <Link to="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+                <Link to="/login" className="text-brand hover:text-brand-hover transition-colors">
                   Back to sign in
                 </Link>
               </p>

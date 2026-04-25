@@ -1,11 +1,39 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Package, Pencil, Trash2, Power, ChevronLeft, ChevronRight, Camera } from 'lucide-react'
-import { getProducts, createProduct, updateProduct, deleteProduct, setProductStatus, type Product } from '../api/products'
+import {
+  Plus,
+  Package,
+  Pencil,
+  Trash2,
+  Power,
+  ChevronLeft,
+  ChevronRight,
+  Camera,
+} from 'lucide-react'
+import {
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  setProductStatus,
+  type Product,
+} from '../api/products'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 import { ImageCropModal } from '../components/ImageCropModal'
 import { formatMoney } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import {
+  Badge,
+  Button,
+  Card,
+  IconButton,
+  Input,
+  Label,
+  Textarea,
+  useConfirm,
+  useToast,
+} from '../components/ui'
 
 const PAGE_SIZE = 10
 
@@ -24,7 +52,9 @@ function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 
   const icon = size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
   if (!src) {
     return (
-      <div className={`${dim} rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0`}>
+      <div
+        className={`${dim} rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0`}
+      >
         <Package className={`${icon} text-gray-600`} />
       </div>
     )
@@ -33,22 +63,16 @@ function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 
     <img
       src={src}
       alt=""
-      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+      onError={(e) => {
+        ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+      }}
       className={`${dim} rounded-lg object-cover bg-gray-800 border border-gray-700 flex-shrink-0`}
     />
   )
 }
 
-function Badge({ active }: { active: boolean }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-      active
-        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-        : 'bg-gray-800 text-gray-500 border-gray-700'
-    }`}>
-      {active ? 'Active' : 'Inactive'}
-    </span>
-  )
+function StatusBadge({ active }: { active: boolean }) {
+  return <Badge variant={active ? 'success' : 'muted'}>{active ? 'Active' : 'Inactive'}</Badge>
 }
 
 // Defined outside ProductsPage so React doesn't treat it as a new type on every render
@@ -65,31 +89,32 @@ function ProductFormFields({
   return (
     <>
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-gray-300">Name</label>
-        <input
+        <Label htmlFor="product-name">Name</Label>
+        <Input
+          id="product-name"
           type="text"
           required
           value={form.name}
           onChange={(e) => onChange({ ...form, name: e.target.value })}
           placeholder="Widget Pro"
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-gray-300">Description</label>
-        <textarea
+        <Label htmlFor="product-description">Description</Label>
+        <Textarea
+          id="product-description"
           required
           value={form.description}
           onChange={(e) => onChange({ ...form, description: e.target.value })}
           placeholder="A short description"
           rows={3}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+          className="resize-none"
         />
       </div>
       <div className="space-y-1.5">
-        <label className="block text-sm font-medium text-gray-300">
+        <Label>
           Image <span className="text-gray-500 font-normal">(optional)</span>
-        </label>
+        </Label>
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -103,14 +128,16 @@ function ProductFormFields({
             )}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity">
               <Camera className="w-4 h-4 text-white" />
-              <span className="text-white text-[10px] font-medium mt-0.5">{hasImage ? 'Change' : 'Upload'}</span>
+              <span className="text-white text-[10px] font-medium mt-0.5">
+                {hasImage ? 'Change' : 'Upload'}
+              </span>
             </div>
           </button>
           <div className="flex-1 min-w-0">
             <button
               type="button"
               onClick={onOpenImageUpload}
-              className="text-sm text-indigo-400 hover:text-indigo-300 font-medium"
+              className="text-sm text-brand hover:text-brand-hover font-medium"
             >
               {hasImage ? 'Replace image' : 'Upload image'}
             </button>
@@ -128,10 +155,13 @@ function ProductFormFields({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-300">Price</label>
+          <Label htmlFor="product-price">Price</Label>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none select-none">$</span>
-            <input
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none select-none z-10">
+              $
+            </span>
+            <Input
+              id="product-price"
               type="number"
               required
               min="0"
@@ -139,13 +169,14 @@ function ProductFormFields({
               value={form.price}
               onChange={(e) => onChange({ ...form, price: e.target.value })}
               placeholder="9.99"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-8 pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="pl-8"
             />
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-gray-300">Stock</label>
-          <input
+          <Label htmlFor="product-stock">Stock</Label>
+          <Input
+            id="product-stock"
             type="number"
             required
             min="0"
@@ -153,7 +184,6 @@ function ProductFormFields({
             value={form.stock}
             onChange={(e) => onChange({ ...form, stock: e.target.value })}
             placeholder="100"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
       </div>
@@ -179,6 +209,8 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
   const showSpinner = isLoading && !hasCachedData
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['products'] })
+  const { confirm, dialog } = useConfirm()
+  const { toast } = useToast()
 
   const [showCreate, setShowCreate] = useState(initialCreate)
   const [createForm, setCreateForm] = useState<ProductForm>(emptyForm)
@@ -259,27 +291,40 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
 
   const handleToggleStatus = async (product: Product) => {
     const next = !product.isActive
-    if (!confirm(`${next ? 'Activate' : 'Deactivate'} "${product.name}"?`)) return
+    const ok = await confirm({
+      title: next ? 'Activate product?' : 'Deactivate product?',
+      message: `"${product.name}" will ${next ? 'be visible on your storefront' : 'be hidden from your storefront'}.`,
+      destructive: !next,
+      confirmLabel: next ? 'Activate' : 'Deactivate',
+    })
+    if (!ok) return
     try {
       await setProductStatus(product.id, next)
       invalidate()
     } catch (err: any) {
-      alert(err.response?.data?.detail ?? 'Failed to update product status.')
+      toast(err.response?.data?.detail ?? 'Failed to update product status.', 'error')
     }
   }
 
   const handleDelete = async (product: Product) => {
-    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return
+    const ok = await confirm({
+      title: 'Delete product?',
+      message: `"${product.name}" will be permanently removed. This cannot be undone.`,
+      destructive: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     try {
       await deleteProduct(product.id)
       invalidate()
     } catch (err: any) {
-      alert(err.response?.data?.detail ?? 'Failed to delete product.')
+      toast(err.response?.data?.detail ?? 'Failed to delete product.', 'error')
     }
   }
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
+      {dialog}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Products</h1>
@@ -287,106 +332,127 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
             {totalCount} product{totalCount !== 1 ? 's' : ''} in this tenant
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
           Add Product
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load products.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load products.
+        </div>
       )}
 
       {showSpinner ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading…</p>
-        </div>
+        <PageLoading boxed />
       ) : products.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+        <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <Package className="w-8 h-8 text-gray-700" />
           <p className="text-gray-500 text-sm">No products yet. Add your first product.</p>
-        </div>
+        </Card>
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[640px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {products.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-white">
-                      <div className="flex items-center gap-3">
-                        <ProductThumb src={p.imageUrl} />
-                        <span className="truncate">{p.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">{p.description}</td>
-                    <td className="px-6 py-4 text-sm text-white font-mono whitespace-nowrap">{formatMoney(p.price)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
-                    <td className="px-6 py-4"><Badge active={p.isActive} /></td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(p)}
-                          className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleToggleStatus(p)}
-                            className={`p-1.5 rounded-lg transition-colors ${
-                              p.isActive
-                                ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
-                                : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
-                            }`}
-                            title={p.isActive ? 'Deactivate' : 'Activate'}
-                          >
-                            <Power className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        {isAdmin && p.isActive && (
-                          <button
-                            onClick={() => handleDelete(p)}
-                            className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <Card className="hidden sm:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Description
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Price
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {products.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="px-6 py-4 text-sm font-medium text-white">
+                        <div className="flex items-center gap-3">
+                          <ProductThumb src={p.imageUrl} />
+                          <span className="truncate">{p.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400 max-w-xs truncate">
+                        {p.description}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-white font-mono whitespace-nowrap">
+                        {formatMoney(p.price)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{p.stock}</td>
+                      <td className="px-6 py-4">
+                        <StatusBadge active={p.isActive} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <IconButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEdit(p)}
+                            aria-label="Edit product"
+                            title="Edit"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </IconButton>
+                          {isAdmin && (
+                            <IconButton
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleToggleStatus(p)}
+                              aria-label={p.isActive ? 'Deactivate product' : 'Activate product'}
+                              title={p.isActive ? 'Deactivate' : 'Activate'}
+                              className={
+                                p.isActive
+                                  ? 'hover:text-red-400 hover:bg-red-950/30'
+                                  : 'hover:text-emerald-400 hover:bg-emerald-950/30'
+                              }
+                            >
+                              <Power className="w-3.5 h-3.5" />
+                            </IconButton>
+                          )}
+                          {isAdmin && p.isActive && (
+                            <IconButton
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(p)}
+                              aria-label="Delete product"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </IconButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </Card>
 
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
             {products.map((p) => (
-              <div key={p.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <Card key={p.id} className="p-4">
                 <div className="flex items-start gap-3">
                   <ProductThumb src={p.imageUrl} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                      <Badge active={p.isActive} />
+                      <StatusBadge active={p.isActive} />
                     </div>
                     <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.description}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs">
@@ -396,37 +462,41 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-800">
-                  <button
+                  <IconButton
+                    variant="ghost"
                     onClick={() => openEdit(p)}
-                    className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+                    aria-label="Edit product"
                     title="Edit"
                   >
                     <Pencil className="w-4 h-4" />
-                  </button>
+                  </IconButton>
                   {isAdmin && (
-                    <button
+                    <IconButton
+                      variant="ghost"
                       onClick={() => handleToggleStatus(p)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        p.isActive
-                          ? 'text-gray-400 hover:text-red-400 hover:bg-red-950/30'
-                          : 'text-gray-400 hover:text-emerald-400 hover:bg-emerald-950/30'
-                      }`}
+                      aria-label={p.isActive ? 'Deactivate product' : 'Activate product'}
                       title={p.isActive ? 'Deactivate' : 'Activate'}
+                      className={
+                        p.isActive
+                          ? 'hover:text-red-400 hover:bg-red-950/30'
+                          : 'hover:text-emerald-400 hover:bg-emerald-950/30'
+                      }
                     >
                       <Power className="w-4 h-4" />
-                    </button>
+                    </IconButton>
                   )}
                   {isAdmin && p.isActive && (
-                    <button
+                    <IconButton
+                      variant="destructive"
                       onClick={() => handleDelete(p)}
-                      className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
+                      aria-label="Delete product"
                       title="Delete"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </IconButton>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </>
@@ -434,22 +504,24 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-400">Page {page} of {totalPages}</p>
+          <p className="text-sm text-gray-400">
+            Page {page} of {totalPages}
+          </p>
           <div className="flex gap-2">
-            <button
+            <IconButton
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
+            </IconButton>
+            <IconButton
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
             >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </IconButton>
           </div>
         </div>
       )}
@@ -463,17 +535,22 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
               onOpenImageUpload={() => setImageUploadTarget('create')}
             />
             {createError && (
-              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{createError}</p>
+              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                {createError}
+              </p>
             )}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowCreate(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowCreate(false)}
+                className="flex-1"
+              >
                 Cancel
-              </button>
-              <button type="submit" disabled={createLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              </Button>
+              <Button type="submit" disabled={createLoading} className="flex-1">
                 {createLoading ? 'Creating…' : 'Create'}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>
@@ -488,17 +565,22 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
               onOpenImageUpload={() => setImageUploadTarget('edit')}
             />
             {editError && (
-              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>
+              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                {editError}
+              </p>
             )}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setEditing(null)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditing(null)}
+                className="flex-1"
+              >
                 Cancel
-              </button>
-              <button type="submit" disabled={editLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              </Button>
+              <Button type="submit" disabled={editLoading} className="flex-1">
                 {editLoading ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>

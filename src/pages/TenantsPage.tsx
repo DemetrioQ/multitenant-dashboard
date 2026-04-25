@@ -3,34 +3,50 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import { Plus, Building2, Pencil, Trash2, Search, MoonStar } from 'lucide-react'
 import {
-  getTenants, createTenant, updateTenant, deactivateTenant,
+  getTenants,
+  createTenant,
+  updateTenant,
+  deactivateTenant,
   type Tenant,
 } from '../api/tenants'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
+import { formatDate, parseUtc } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import {
+  Badge,
+  Button,
+  Card,
+  IconButton,
+  Input,
+  Label,
+  Select,
+  useConfirm,
+  useToast,
+} from '../components/ui'
 
 type SearchField = 'slug' | 'name'
 type SortKey = 'recent' | 'oldest' | 'name' | 'slug' | 'activity'
 type StatusFilter = 'all' | 'active' | 'inactive' | 'dormant'
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'recent',   label: 'Recently added' },
-  { value: 'oldest',   label: 'Oldest first' },
+  { value: 'recent', label: 'Recently added' },
+  { value: 'oldest', label: 'Oldest first' },
   { value: 'activity', label: 'Last activity' },
-  { value: 'name',     label: 'Name (A–Z)' },
-  { value: 'slug',     label: 'Slug (A–Z)' },
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'slug', label: 'Slug (A–Z)' },
 ]
 
 const DORMANT_MS = 30 * 24 * 60 * 60 * 1000
 
 function isDormant(lastActivityAt: string | null): boolean {
   if (!lastActivityAt) return true
-  return Date.now() - new Date(lastActivityAt).getTime() > DORMANT_MS
+  return Date.now() - parseUtc(lastActivityAt).getTime() > DORMANT_MS
 }
 
 function activityLabel(lastActivityAt: string | null): string {
   if (!lastActivityAt) return 'Never'
-  const diffMs = Date.now() - new Date(lastActivityAt).getTime()
+  const diffMs = Date.now() - parseUtc(lastActivityAt).getTime()
   const sec = Math.floor(diffMs / 1000)
   if (sec < 60) return 'just now'
   const min = Math.floor(sec / 60)
@@ -46,27 +62,25 @@ function activityLabel(lastActivityAt: string | null): string {
 
 function DormantBadge() {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-500/10 text-amber-400 border-amber-500/20">
+    <Badge variant="warning">
       <MoonStar className="w-3 h-3" /> Dormant
-    </span>
+    </Badge>
   )
 }
 
-function Badge({ active }: { active: boolean }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-      active
-        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-        : 'bg-gray-800 text-gray-500 border-gray-700'
-    }`}>
-      {active ? 'Active' : 'Inactive'}
-    </span>
-  )
+function StatusBadge({ active }: { active: boolean }) {
+  return <Badge variant={active ? 'success' : 'muted'}>{active ? 'Active' : 'Inactive'}</Badge>
 }
 
 function AllTenantsView() {
   const qc = useQueryClient()
-  const { data: tenants = [], isLoading, error } = useQuery({
+  const { confirm, dialog } = useConfirm()
+  const { toast } = useToast()
+  const {
+    data: tenants = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['tenants'],
     queryFn: getTenants,
   })
@@ -104,13 +118,17 @@ function AllTenantsView() {
     const sorted = [...filtered]
     sorted.sort((a, b) => {
       switch (sortKey) {
-        case 'recent':   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        case 'oldest':   return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        case 'name':     return a.name.localeCompare(b.name)
-        case 'slug':     return a.slug.localeCompare(b.slug)
+        case 'recent':
+          return parseUtc(b.createdAt).getTime() - parseUtc(a.createdAt).getTime()
+        case 'oldest':
+          return parseUtc(a.createdAt).getTime() - parseUtc(b.createdAt).getTime()
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'slug':
+          return a.slug.localeCompare(b.slug)
         case 'activity': {
-          const av = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0
-          const bv = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0
+          const av = a.lastActivityAt ? parseUtc(a.lastActivityAt).getTime() : 0
+          const bv = b.lastActivityAt ? parseUtc(b.lastActivityAt).getTime() : 0
           return bv - av
         }
       }
@@ -162,162 +180,193 @@ function AllTenantsView() {
   }
 
   const handleDeactivate = async (tenant: Tenant) => {
-    if (!confirm(`Deactivate "${tenant.name}"?`)) return
+    const ok = await confirm({
+      title: 'Deactivate tenant?',
+      message: `"${tenant.name}" will be marked inactive.`,
+      destructive: true,
+      confirmLabel: 'Deactivate',
+    })
+    if (!ok) return
     try {
       await deactivateTenant(tenant.id)
       invalidate()
     } catch (err: any) {
-      alert(err.response?.data?.detail ?? 'Failed to deactivate tenant.')
+      toast(err.response?.data?.detail ?? 'Failed to deactivate tenant.', 'error')
     }
   }
 
-  const fieldClass = 'block w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500'
-
   return (
     <>
+      {dialog}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Tenants</h1>
           <p className="text-gray-400 mt-1 text-sm">All registered tenants on this platform</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
           New Tenant
-        </button>
+        </Button>
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenants.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load tenants.
+        </div>
       )}
 
       {tenants.length > 0 && (
         <div className="mb-4 flex flex-col sm:flex-row gap-2 sm:gap-3">
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none z-10" />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={searchField === 'slug' ? 'Search by slug…' : 'Search by name…'}
-              className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-gray-900 pl-9 py-2"
             />
           </div>
           <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-3 sm:flex-shrink-0">
-            <select
+            <Select
               value={searchField}
               onChange={(e) => setSearchField(e.target.value as SearchField)}
-              className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-gray-900"
             >
               <option value="slug">Slug</option>
               <option value="name">Name</option>
-            </select>
-            <select
+            </Select>
+            <Select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-gray-900"
             >
               {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
-            </select>
-            <select
+            </Select>
+            <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-gray-900"
             >
               <option value="all">All</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
               <option value="dormant">Dormant</option>
-            </select>
+            </Select>
           </div>
         </div>
       )}
 
       {showSpinner ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading...</p>
-        </div>
+        <PageLoading boxed />
       ) : tenants.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+        <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <Building2 className="w-8 h-8 text-gray-700" />
           <p className="text-gray-500 text-sm">No tenants yet.</p>
-        </div>
+        </Card>
       ) : visibleTenants.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+        <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <Search className="w-8 h-8 text-gray-700" />
           <p className="text-gray-500 text-sm">No tenants match your filters.</p>
-        </div>
+        </Card>
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[820px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Slug</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Users</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Products</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Last activity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {visibleTenants.map((t) => {
-                  const dormant = isDormant(t.lastActivityAt)
-                  return (
-                    <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
-                      <td className="px-6 py-4 text-sm font-mono text-white">{t.slug}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300">{t.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">{t.userCount}</td>
-                      <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">{t.productCount}</td>
-                      <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">{activityLabel(t.lastActivityAt)}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Badge active={t.isActive} />
-                          {t.isActive && dormant && <DormantBadge />}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => openEdit(t)}
-                            className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          {t.isActive && (
-                            <button onClick={() => handleDeactivate(t)}
-                              className="p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <Card className="hidden sm:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[820px]">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Slug
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Users
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Products
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Last activity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {visibleTenants.map((t) => {
+                    const dormant = isDormant(t.lastActivityAt)
+                    return (
+                      <tr key={t.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="px-6 py-4 text-sm font-mono text-white">{t.slug}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300">{t.name}</td>
+                        <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">
+                          {t.userCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-300 font-mono text-right">
+                          {t.productCount}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
+                          {activityLabel(t.lastActivityAt)}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <StatusBadge active={t.isActive} />
+                            {t.isActive && dormant && <DormantBadge />}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <IconButton
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEdit(t)}
+                              aria-label="Edit tenant"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </IconButton>
+                            {t.isActive && (
+                              <IconButton
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDeactivate(t)}
+                                aria-label="Deactivate tenant"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </IconButton>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </Card>
 
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
             {visibleTenants.map((t) => {
               const dormant = isDormant(t.lastActivityAt)
               return (
-                <div key={t.id} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <Card key={t.id} className="p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-mono text-white truncate">{t.slug}</p>
                       <p className="text-xs text-gray-400 mt-0.5 truncate">{t.name}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <Badge active={t.isActive} />
+                      <StatusBadge active={t.isActive} />
                       {t.isActive && dormant && <DormantBadge />}
                     </div>
                   </div>
@@ -336,21 +385,27 @@ function AllTenantsView() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-800">
-                    <span className="text-xs text-gray-500">Created {new Date(t.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-gray-500">Created {formatDate(t.createdAt)}</span>
                     <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(t)}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+                      <IconButton
+                        variant="ghost"
+                        onClick={() => openEdit(t)}
+                        aria-label="Edit tenant"
+                      >
                         <Pencil className="w-4 h-4" />
-                      </button>
+                      </IconButton>
                       {t.isActive && (
-                        <button onClick={() => handleDeactivate(t)}
-                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors">
+                        <IconButton
+                          variant="destructive"
+                          onClick={() => handleDeactivate(t)}
+                          aria-label="Deactivate tenant"
+                        >
                           <Trash2 className="w-4 h-4" />
-                        </button>
+                        </IconButton>
                       )}
                     </div>
                   </div>
-                </div>
+                </Card>
               )
             })}
           </div>
@@ -361,22 +416,45 @@ function AllTenantsView() {
         <Modal title="New Tenant" onClose={() => setShowCreate(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-300">Name</label>
-              <input type="text" required value={createName} onChange={(e) => setCreateName(e.target.value)} placeholder="Acme Corp" className={fieldClass} />
+              <Label htmlFor="create-name">Name</Label>
+              <Input
+                id="create-name"
+                type="text"
+                required
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="Acme Corp"
+              />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-300">Slug</label>
-              <input type="text" required value={createSlug} onChange={(e) => setCreateSlug(e.target.value)} placeholder="acme-corp" className={fieldClass} />
+              <Label htmlFor="create-slug">Slug</Label>
+              <Input
+                id="create-slug"
+                type="text"
+                required
+                value={createSlug}
+                onChange={(e) => setCreateSlug(e.target.value)}
+                placeholder="acme-corp"
+              />
               <p className="text-xs text-gray-500">Lowercase letters, numbers and hyphens only</p>
             </div>
-            {createError && <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{createError}</p>}
+            {createError && (
+              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                {createError}
+              </p>
+            )}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowCreate(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
-              <button type="submit" disabled={createLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowCreate(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={createLoading} className="flex-1">
                 {createLoading ? 'Creating...' : 'Create'}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>
@@ -386,17 +464,32 @@ function AllTenantsView() {
         <Modal title="Edit Tenant" onClose={() => setEditing(null)}>
           <form onSubmit={handleEdit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-gray-300">Name</label>
-              <input type="text" required value={editName} onChange={(e) => setEditName(e.target.value)} className={fieldClass} />
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                type="text"
+                required
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
             </div>
-            {editError && <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>}
+            {editError && (
+              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                {editError}
+              </p>
+            )}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setEditing(null)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
-              <button type="submit" disabled={editLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditing(null)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editLoading} className="flex-1">
                 {editLoading ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>

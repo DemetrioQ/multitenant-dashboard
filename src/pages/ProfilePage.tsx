@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { UserCircle, Camera, Lock } from 'lucide-react'
@@ -7,17 +7,8 @@ import { changePassword } from '../api/auth'
 import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { ImageCropModal } from '../components/ImageCropModal'
-
-function inputClass(error?: string) {
-  return `block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
-    error ? 'border-red-500 focus:ring-red-500' : 'border-gray-700 focus:ring-indigo-500'
-  }`
-}
-
-function FieldError({ msg }: { msg?: string }) {
-  if (!msg) return null
-  return <p className="text-red-400 text-xs mt-1">{msg}</p>
-}
+import { PageLoading } from '../components/PageStates'
+import { Badge, Button, Card, FieldError, Input, Label, Textarea } from '../components/ui'
 
 interface Form {
   firstName: string
@@ -54,7 +45,8 @@ const emptyPasswordForm: PasswordForm = {
 function validatePassword(f: PasswordForm): PasswordFieldErrors {
   const errors: PasswordFieldErrors = {}
   if (!f.currentPassword) errors.currentPassword = 'Required.'
-  if (f.newPassword.length > 0 && f.newPassword.length < 8) errors.newPassword = 'Must be at least 8 characters.'
+  if (f.newPassword.length > 0 && f.newPassword.length < 8)
+    errors.newPassword = 'Must be at least 8 characters.'
   if (f.newPassword && f.currentPassword && f.newPassword === f.currentPassword) {
     errors.newPassword = 'Must be different from current password.'
   }
@@ -87,28 +79,36 @@ export function ProfilePage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwSubmitError, setPwSubmitError] = useState<string | null>(null)
 
+  // Seed the form once, when profile first arrives. Subsequent refetches
+  // (invalidation, background sync) must not clobber in-progress edits.
+  const seededRef = useRef(false)
   useEffect(() => {
-    if (!profile) return
+    if (!profile || seededRef.current) return
     setForm({
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
       avatarUrl: profile.avatarUrl ?? '',
       bio: profile.bio ?? '',
     })
+    seededRef.current = true
   }, [profile])
 
   const invalidateProfile = () => qc.invalidateQueries({ queryKey: qk.userMe })
 
-  const set = (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value }))
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }))
-    if (success) setSuccess(false)
-  }
+  const set =
+    (key: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setForm((prev) => ({ ...prev, [key]: e.target.value }))
+      if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }))
+      if (success) setSuccess(false)
+    }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const fieldErrors = validate(form)
-    if (Object.keys(fieldErrors).length > 0) { setErrors(fieldErrors); return }
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors)
+      return
+    }
     setSaving(true)
     setSubmitError(null)
     setSuccess(false)
@@ -137,7 +137,10 @@ export function ProfilePage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     const fieldErrors = validatePassword(pwForm)
-    if (Object.keys(fieldErrors).length > 0) { setPwErrors(fieldErrors); return }
+    if (Object.keys(fieldErrors).length > 0) {
+      setPwErrors(fieldErrors)
+      return
+    }
     setPwSaving(true)
     setPwSubmitError(null)
     try {
@@ -183,20 +186,14 @@ export function ProfilePage() {
           <UserCircle className="w-5 h-5 text-gray-400" />
           <h1 className="text-2xl font-semibold text-white">Profile</h1>
         </div>
-        <p className="text-gray-400 mt-1 text-sm">
+        <p className="text-gray-400 mt-1 text-sm flex items-center gap-2">
           {profile ? profile.email : ''}
-          {profile && (
-            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-400 border border-gray-700">
-              {profile.role}
-            </span>
-          )}
+          {profile && <Badge>{profile.role}</Badge>}
         </p>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading...</p>
-        </div>
+        <PageLoading />
       ) : (
         <>
           {/* Clickable avatar */}
@@ -222,53 +219,67 @@ export function ProfilePage() {
           </div>
 
           <form onSubmit={handleSubmit} noValidate>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
+            <Card className="divide-y divide-gray-800">
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">
+                <Label htmlFor="first-name">
                   First name <span className="text-gray-500 font-normal">(optional)</span>
-                </label>
-                <input type="text" value={form.firstName} onChange={set('firstName')} placeholder="Jane" className={inputClass(errors.firstName)} />
-                <FieldError msg={errors.firstName} />
+                </Label>
+                <Input
+                  id="first-name"
+                  type="text"
+                  value={form.firstName}
+                  onChange={set('firstName')}
+                  placeholder="Jane"
+                  error={!!errors.firstName}
+                />
+                <FieldError message={errors.firstName} />
               </div>
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">
+                <Label htmlFor="last-name">
                   Last name <span className="text-gray-500 font-normal">(optional)</span>
-                </label>
-                <input type="text" value={form.lastName} onChange={set('lastName')} placeholder="Smith" className={inputClass(errors.lastName)} />
-                <FieldError msg={errors.lastName} />
+                </Label>
+                <Input
+                  id="last-name"
+                  type="text"
+                  value={form.lastName}
+                  onChange={set('lastName')}
+                  placeholder="Smith"
+                  error={!!errors.lastName}
+                />
+                <FieldError message={errors.lastName} />
               </div>
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">
+                <Label htmlFor="bio">
                   Bio <span className="text-gray-500 font-normal">(optional)</span>
-                </label>
-                <textarea
+                </Label>
+                <Textarea
+                  id="bio"
                   value={form.bio}
                   onChange={set('bio')}
                   placeholder="A short bio..."
                   rows={3}
-                  className={`block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent resize-none ${
-                    errors.bio ? 'border-red-500 focus:ring-red-500' : 'border-gray-700 focus:ring-indigo-500'
-                  }`}
+                  className="resize-none"
+                  error={!!errors.bio}
                 />
-                <FieldError msg={errors.bio} />
+                <FieldError message={errors.bio} />
               </div>
-            </div>
+            </Card>
 
             {submitError && (
-              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{submitError}</p>
+              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+                {submitError}
+              </p>
             )}
             {success && (
-              <p className="mt-4 text-emerald-400 text-sm bg-emerald-950/40 border border-emerald-900/50 rounded-lg px-4 py-3">Profile saved.</p>
+              <p className="mt-4 text-emerald-400 text-sm bg-emerald-950/40 border border-emerald-900/50 rounded-lg px-4 py-3">
+                Profile saved.
+              </p>
             )}
 
             <div className="mt-6 flex justify-end">
-              <button
-                type="submit"
-                disabled={saving}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
-              >
+              <Button type="submit" disabled={saving} size="lg">
                 {saving ? 'Saving...' : 'Save changes'}
-              </button>
+              </Button>
             </div>
           </form>
 
@@ -281,54 +292,55 @@ export function ProfilePage() {
           </p>
 
           <form onSubmit={handleChangePassword} noValidate>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
+            <Card className="divide-y divide-gray-800">
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">Current password</label>
-                <input
+                <Label htmlFor="current-password">Current password</Label>
+                <Input
+                  id="current-password"
                   type="password"
                   value={pwForm.currentPassword}
                   onChange={setPw('currentPassword')}
                   autoComplete="current-password"
-                  className={inputClass(pwErrors.currentPassword)}
+                  error={!!pwErrors.currentPassword}
                 />
-                <FieldError msg={pwErrors.currentPassword} />
+                <FieldError message={pwErrors.currentPassword} />
               </div>
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">New password</label>
-                <input
+                <Label htmlFor="new-password">New password</Label>
+                <Input
+                  id="new-password"
                   type="password"
                   value={pwForm.newPassword}
                   onChange={setPw('newPassword')}
                   autoComplete="new-password"
-                  className={inputClass(pwErrors.newPassword)}
+                  error={!!pwErrors.newPassword}
                 />
-                <FieldError msg={pwErrors.newPassword} />
+                <FieldError message={pwErrors.newPassword} />
               </div>
               <div className="px-6 py-5 space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">Confirm new password</label>
-                <input
+                <Label htmlFor="confirm-new-password">Confirm new password</Label>
+                <Input
+                  id="confirm-new-password"
                   type="password"
                   value={pwForm.confirmNewPassword}
                   onChange={setPw('confirmNewPassword')}
                   autoComplete="new-password"
-                  className={inputClass(pwErrors.confirmNewPassword)}
+                  error={!!pwErrors.confirmNewPassword}
                 />
-                <FieldError msg={pwErrors.confirmNewPassword} />
+                <FieldError message={pwErrors.confirmNewPassword} />
               </div>
-            </div>
+            </Card>
 
             {pwSubmitError && (
-              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{pwSubmitError}</p>
+              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+                {pwSubmitError}
+              </p>
             )}
 
             <div className="mt-6 flex justify-end">
-              <button
-                type="submit"
-                disabled={pwSaving}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
-              >
+              <Button type="submit" disabled={pwSaving} size="lg">
                 {pwSaving ? 'Changing...' : 'Change password'}
-              </button>
+              </Button>
             </div>
           </form>
         </>

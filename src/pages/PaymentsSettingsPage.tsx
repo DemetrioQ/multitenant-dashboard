@@ -2,27 +2,37 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  ArrowLeft, CreditCard, CheckCircle2, AlertTriangle, Loader2,
-  Info, ShieldAlert, ExternalLink, Percent,
+  ArrowLeft,
+  CreditCard,
+  CheckCircle2,
+  AlertTriangle,
+  Loader2,
+  Info,
+  ShieldAlert,
+  ExternalLink,
+  Percent,
 } from 'lucide-react'
 import {
-  getConnectStatus, startConnectOnboarding, refreshConnectStatus,
+  getConnectStatus,
+  startConnectOnboarding,
+  refreshConnectStatus,
   type PaymentsConnectStatus,
 } from '../api/payments'
 import { useAuth } from '../hooks/useAuth'
+import { Button, Card } from '../components/ui'
 
 function buildReturnUrls(): { refreshUrl: string; returnUrl: string } {
   const origin = window.location.origin
   return {
     refreshUrl: `${origin}/settings/payments`,
-    returnUrl:  `${origin}/settings/payments?onboarded=1`,
+    returnUrl: `${origin}/settings/payments?onboarded=1`,
   }
 }
 
 function StatusCard({ status }: { status: PaymentsConnectStatus }) {
   if (!status.connected) {
     return (
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex items-start gap-4">
+      <Card className="p-5 flex items-start gap-4">
         <div className="w-10 h-10 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">
           <CreditCard className="w-5 h-5 text-gray-500" />
         </div>
@@ -33,7 +43,7 @@ function StatusCard({ status }: { status: PaymentsConnectStatus }) {
             Cash-on-delivery checkout keeps working either way.
           </p>
         </div>
-      </div>
+      </Card>
     )
   }
 
@@ -46,7 +56,8 @@ function StatusCard({ status }: { status: PaymentsConnectStatus }) {
         <div>
           <p className="text-emerald-300 font-medium">Ready to accept payments</p>
           <p className="text-sm text-gray-300 mt-0.5">
-            Stripe is connected{status.provider ? ` (${status.provider})` : ''}. Card payments route to your account; the platform takes its fee.
+            Stripe is connected{status.provider ? ` (${status.provider})` : ''}. Card payments route
+            to your account; the platform takes its fee.
           </p>
         </div>
       </div>
@@ -62,7 +73,8 @@ function StatusCard({ status }: { status: PaymentsConnectStatus }) {
         <div>
           <p className="text-rose-300 font-medium">Stripe application rejected</p>
           <p className="text-sm text-gray-300 mt-0.5">
-            Stripe was unable to verify this account. Contact Stripe support for details, or restart onboarding with corrected information.
+            Stripe was unable to verify this account. Contact Stripe support for details, or restart
+            onboarding with corrected information.
           </p>
         </div>
       </div>
@@ -77,32 +89,40 @@ function StatusCard({ status }: { status: PaymentsConnectStatus }) {
       <div>
         <p className="text-amber-300 font-medium">Setup incomplete</p>
         <p className="text-sm text-gray-300 mt-0.5">
-          Stripe onboarding started but hasn't finished. Until it's done, card checkout returns an error to your customers.
+          Stripe onboarding started but hasn't finished. Until it's done, card checkout returns an
+          error to your customers.
         </p>
       </div>
     </div>
   )
 }
 
-function FeeDisclosure({ status, prominent }: { status: PaymentsConnectStatus; prominent: boolean }) {
+function FeeDisclosure({
+  status,
+  prominent,
+}: {
+  status: PaymentsConnectStatus
+  prominent: boolean
+}) {
   const pct = (status.platformFeePercent * 100).toFixed(status.platformFeePercent < 0.01 ? 2 : 0)
   const containerClass = prominent
-    ? 'bg-indigo-950/30 border border-indigo-900/60 rounded-xl p-4 sm:p-5'
+    ? 'bg-brand/10 border border-brand/30 rounded-xl p-4 sm:p-5'
     : 'bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5'
-  const iconBg = prominent ? 'bg-indigo-500/20' : 'bg-indigo-500/10'
+  const iconBg = prominent ? 'bg-brand/20' : 'bg-brand/10'
   return (
     <div className={containerClass}>
       <div className="flex items-start gap-3">
-        <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}>
-          <Percent className="w-4 h-4 text-indigo-400" />
+        <div
+          className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center flex-shrink-0`}
+        >
+          <Percent className="w-4 h-4 text-brand" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-white">
-            Platform fee: {pct}% of each transaction
-          </p>
+          <p className="text-sm font-medium text-white">Platform fee: {pct}% of each transaction</p>
           <p className="text-sm text-gray-300 mt-1">
             We take <span className="text-white font-medium">{pct}%</span> of each transaction.
-            Stripe's own processing fees (~2.9% + $0.30) are separate and shown in your Stripe dashboard.
+            Stripe's own processing fees (~2.9% + $0.30) are separate and shown in your Stripe
+            dashboard.
           </p>
         </div>
       </div>
@@ -118,7 +138,7 @@ function Checklist({ status }: { status: PaymentsConnectStatus }) {
     ['Can accept payments', status.canAcceptPayments],
   ]
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
+    <Card className="divide-y divide-gray-800">
       {rows.map(([label, ok]) => (
         <div key={label} className="flex items-center justify-between px-5 py-3">
           <span className="text-sm text-gray-300">{label}</span>
@@ -129,7 +149,7 @@ function Checklist({ status }: { status: PaymentsConnectStatus }) {
           )}
         </div>
       ))}
-    </div>
+    </Card>
   )
 }
 
@@ -173,8 +193,10 @@ export function PaymentsSettingsPage() {
         }
       }
     })()
-    return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleConnect = async () => {
@@ -193,7 +215,10 @@ export function PaymentsSettingsPage() {
   if (!isAdmin) {
     return (
       <div className="p-4 sm:p-8 max-w-3xl mx-auto">
-        <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to settings
         </Link>
         <div className="text-gray-400 text-sm bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
@@ -205,24 +230,31 @@ export function PaymentsSettingsPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-3xl mx-auto">
-      <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+      <Link
+        to="/settings"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+      >
         <ArrowLeft className="w-4 h-4" /> Back to settings
       </Link>
 
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-white">Payments</h1>
-        <p className="text-gray-400 mt-1 text-sm">Connect your Stripe account to accept card payments on your storefront.</p>
+        <p className="text-gray-400 mt-1 text-sm">
+          Connect your Stripe account to accept card payments on your storefront.
+        </p>
       </div>
 
       {justReturned && !isLoading && (
-        <div className="mb-4 flex items-start gap-2 text-sm bg-indigo-950/30 border border-indigo-900/50 rounded-lg px-4 py-3 text-indigo-200">
+        <div className="mb-4 flex items-start gap-2 text-sm bg-brand/10 border border-brand/30 rounded-lg px-4 py-3 text-brand">
           <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
           <span>Welcome back from Stripe. We've refreshed your connection status.</span>
         </div>
       )}
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">{error}</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          {error}
+        </div>
       )}
 
       {showSpinner ? (
@@ -237,35 +269,38 @@ export function PaymentsSettingsPage() {
 
           {status.connected && <Checklist status={status} />}
 
-          <div className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <Card className="flex items-center justify-between p-5">
             <div>
               <p className="text-white font-medium text-sm">
                 {status.connected
-                  ? status.canAcceptPayments ? 'Manage on Stripe' : 'Finish Stripe setup'
+                  ? status.canAcceptPayments
+                    ? 'Manage on Stripe'
+                    : 'Finish Stripe setup'
                   : 'Connect Stripe'}
               </p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {status.connected && status.canAcceptPayments
                   ? 'Reopen Stripe onboarding to update business details, banking, or identity.'
-                  : 'Opens Stripe\'s hosted onboarding in a full-page redirect.'}
+                  : "Opens Stripe's hosted onboarding in a full-page redirect."}
               </p>
             </div>
-            <button
-              onClick={handleConnect}
-              disabled={actionLoading}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
+            <Button onClick={handleConnect} disabled={actionLoading}>
               {actionLoading ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Redirecting…
+                </>
               ) : (
                 <>
                   {status.connected
-                    ? status.canAcceptPayments ? 'Manage' : 'Finish setup'
-                    : 'Connect'} <ExternalLink className="w-3.5 h-3.5" />
+                    ? status.canAcceptPayments
+                      ? 'Manage'
+                      : 'Finish setup'
+                    : 'Connect'}{' '}
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </>
               )}
-            </button>
-          </div>
+            </Button>
+          </Card>
         </div>
       ) : null}
     </div>

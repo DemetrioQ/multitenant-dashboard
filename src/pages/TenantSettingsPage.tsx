@@ -6,28 +6,14 @@ import { getTenantMe, updateTenant } from '../api/tenants'
 import { qk } from '../lib/queryKeys'
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
+import { formatDate } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, Button, Card, FieldError, Input, Label } from '../components/ui'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function inputClass(error?: string) {
-  return `block w-full bg-gray-800 border rounded-lg px-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
-    error ? 'border-red-500 focus:ring-red-500' : 'border-gray-700 focus:ring-indigo-500'
-  }`
-}
-
-function FieldError({ msg }: { msg?: string }) {
-  if (!msg) return null
-  return <p className="text-red-400 text-xs mt-1">{msg}</p>
-}
-
-function Badge({ active }: { active: boolean }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-      active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-800 text-gray-500 border-gray-700'
-    }`}>
-      {active ? 'Active' : 'Inactive'}
-    </span>
-  )
+function StatusBadge({ active }: { active: boolean }) {
+  return <Badge variant={active ? 'success' : 'muted'}>{active ? 'Active' : 'Inactive'}</Badge>
 }
 
 interface EditForm {
@@ -57,7 +43,11 @@ function validateEdit(f: EditForm): EditErrors {
 export function TenantSettingsPage() {
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
-  const { data: tenant, isLoading, error } = useQuery({
+  const {
+    data: tenant,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: qk.tenantMe,
     queryFn: getTenantMe,
   })
@@ -90,7 +80,10 @@ export function TenantSettingsPage() {
     e.preventDefault()
     if (!tenant) return
     const errors = validateEdit(editForm)
-    if (Object.keys(errors).length > 0) { setEditErrors(errors); return }
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors)
+      return
+    }
     setEditLoading(true)
     setEditError(null)
     try {
@@ -106,14 +99,18 @@ export function TenantSettingsPage() {
       if (apiErrors) {
         const keyMap: Record<string, keyof EditForm> = {
           Name: 'name',
-          SupportEmail: 'supportEmail', WebsiteUrl: 'websiteUrl',
+          SupportEmail: 'supportEmail',
+          WebsiteUrl: 'websiteUrl',
         }
         const mapped: EditErrors = {}
         for (const [k, msgs] of Object.entries(apiErrors)) {
           const local = keyMap[k]
           if (local) mapped[local] = (msgs as string[])[0]
         }
-        if (Object.keys(mapped).length > 0) { setEditErrors(mapped); return }
+        if (Object.keys(mapped).length > 0) {
+          setEditErrors(mapped)
+          return
+        }
       }
       setEditError(err.response?.data?.detail ?? 'Failed to save changes.')
     } finally {
@@ -129,70 +126,95 @@ export function TenantSettingsPage() {
           <p className="text-gray-400 mt-1 text-sm">Your organisation's details</p>
         </div>
         {isAdmin && tenant && (
-          <button
-            onClick={openEdit}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors border border-gray-700"
-          >
+          <Button variant="secondary" onClick={openEdit}>
             <Pencil className="w-4 h-4" /> Edit
-          </button>
+          </Button>
         )}
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load tenant details.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load tenant details.
+        </div>
       )}
 
       {showSpinner ? (
-        <div className="flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading...</p>
-        </div>
+        <PageLoading />
       ) : tenant ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800">
-          {([
-            { label: 'Name',    value: tenant.name },
-            { label: 'Slug',    value: tenant.slug, mono: true },
-            { label: 'Status',  value: <Badge active={tenant.isActive} /> },
-            { label: 'Created', value: new Date(tenant.createdAt).toLocaleDateString() },
-            { label: 'ID',      value: tenant.id, mono: true },
-            ...(tenant.supportEmail ? [{
-              label: 'Support email',
-              value: (
-                <a href={`mailto:${tenant.supportEmail}`} className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 justify-end">
-                  <Mail className="w-3.5 h-3.5" />{tenant.supportEmail}
-                </a>
-              ),
-            }] : []),
-            ...(tenant.websiteUrl ? [{
-              label: 'Website',
-              value: (
-                <a href={tenant.websiteUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 justify-end">
-                  <Globe className="w-3.5 h-3.5" />{tenant.websiteUrl}
-                </a>
-              ),
-            }] : []),
-          ] as { label: string; value: React.ReactNode; mono?: boolean }[]).map(({ label, value, mono }) => (
+        <Card className="divide-y divide-gray-800">
+          {(
+            [
+              { label: 'Name', value: tenant.name },
+              { label: 'Slug', value: tenant.slug, mono: true },
+              { label: 'Status', value: <StatusBadge active={tenant.isActive} /> },
+              { label: 'Created', value: formatDate(tenant.createdAt) },
+              { label: 'ID', value: tenant.id, mono: true },
+              ...(tenant.supportEmail
+                ? [
+                    {
+                      label: 'Support email',
+                      value: (
+                        <a
+                          href={`mailto:${tenant.supportEmail}`}
+                          className="text-brand hover:text-brand-hover flex items-center gap-1.5 justify-end"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          {tenant.supportEmail}
+                        </a>
+                      ),
+                    },
+                  ]
+                : []),
+              ...(tenant.websiteUrl
+                ? [
+                    {
+                      label: 'Website',
+                      value: (
+                        <a
+                          href={tenant.websiteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-brand hover:text-brand-hover flex items-center gap-1.5 justify-end"
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          {tenant.websiteUrl}
+                        </a>
+                      ),
+                    },
+                  ]
+                : []),
+            ] as { label: string; value: React.ReactNode; mono?: boolean }[]
+          ).map(({ label, value, mono }) => (
             <div key={label} className="flex items-center justify-between px-6 py-4">
               <span className="text-sm text-gray-400 w-32 flex-shrink-0">{label}</span>
-              <span className={`text-sm text-white flex-1 text-right ${mono ? 'font-mono text-gray-300' : ''}`}>{value}</span>
+              <span
+                className={`text-sm text-white flex-1 text-right ${mono ? 'font-mono text-gray-300' : ''}`}
+              >
+                {value}
+              </span>
             </div>
           ))}
-        </div>
+        </Card>
       ) : null}
 
       {isAdmin && tenant && (
         <div className="mt-6">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">Admin settings</p>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 overflow-hidden">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-1">
+            Admin settings
+          </p>
+          <Card className="divide-y divide-gray-800 overflow-hidden">
             <Link
               to="/settings/payments"
               className="flex items-center gap-4 px-6 py-4 hover:bg-gray-800/40 transition-colors group"
             >
-              <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                <CreditCard className="w-4 h-4 text-indigo-400" />
+              <div className="w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center flex-shrink-0">
+                <CreditCard className="w-4 h-4 text-brand" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white">Payments</p>
-                <p className="text-xs text-gray-500">Connect a Stripe account to accept card payments on your storefront.</p>
+                <p className="text-xs text-gray-500">
+                  Connect a Stripe account to accept card payments on your storefront.
+                </p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
             </Link>
@@ -205,46 +227,69 @@ export function TenantSettingsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white">Email templates</p>
-                <p className="text-xs text-gray-500">Customise the emails your storefront sends to customers.</p>
+                <p className="text-xs text-gray-500">
+                  Customise the emails your storefront sends to customers.
+                </p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
             </Link>
-          </div>
+          </Card>
         </div>
       )}
 
       {editing && (
         <Modal title="Edit tenant" onClose={() => setEditing(false)}>
           <form onSubmit={handleEdit} noValidate className="space-y-4">
-            {([
+            {[
               { key: 'name' as const, label: 'Name', type: 'text', placeholder: '' },
-              { key: 'supportEmail' as const, label: 'Support email', type: 'email', placeholder: 'support@example.com', optional: true },
-              { key: 'websiteUrl' as const, label: 'Website URL', type: 'url', placeholder: 'https://example.com', optional: true },
-            ]).map(({ key, label, type, placeholder, optional }) => (
+              {
+                key: 'supportEmail' as const,
+                label: 'Support email',
+                type: 'email',
+                placeholder: 'support@example.com',
+                optional: true,
+              },
+              {
+                key: 'websiteUrl' as const,
+                label: 'Website URL',
+                type: 'url',
+                placeholder: 'https://example.com',
+                optional: true,
+              },
+            ].map(({ key, label, type, placeholder, optional }) => (
               <div key={key} className="space-y-1.5">
-                <label className="block text-sm font-medium text-gray-300">
-                  {label}{optional && <span className="text-gray-500 font-normal"> (optional)</span>}
-                </label>
-                <input
+                <Label htmlFor={`edit-${key}`}>
+                  {label}
+                  {optional && <span className="text-gray-500 font-normal"> (optional)</span>}
+                </Label>
+                <Input
+                  id={`edit-${key}`}
                   type={type}
                   value={editForm[key]}
                   onChange={setField(key)}
                   placeholder={placeholder}
-                  className={inputClass(editErrors[key])}
+                  error={!!editErrors[key]}
                 />
-                <FieldError msg={editErrors[key]} />
+                <FieldError message={editErrors[key]} />
               </div>
             ))}
             {editError && (
-              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">{editError}</p>
+              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                {editError}
+              </p>
             )}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setEditing(false)}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Cancel</button>
-              <button type="submit" disabled={editLoading}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditing(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={editLoading} className="flex-1">
                 {editLoading ? 'Saving...' : 'Save'}
-              </button>
+              </Button>
             </div>
           </form>
         </Modal>

@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { verifyEmail } from '../api/auth'
+import { Button } from '../components/ui'
 
 type Status = 'loading' | 'success' | 'error'
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<Status>('loading')
-  const [errorMessage, setErrorMessage] = useState<string>('The verification link is invalid or has expired.')
+  const [errorMessage, setErrorMessage] = useState<string>(
+    'The verification link is invalid or has expired.',
+  )
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -19,7 +22,9 @@ export function VerifyEmailPage() {
     verifyEmail(token)
       .then(() => setStatus('success'))
       .catch((err) => {
-        setErrorMessage(err.response?.data?.detail ?? 'The verification link is invalid or has expired.')
+        setErrorMessage(
+          err.response?.data?.detail ?? 'The verification link is invalid or has expired.',
+        )
         setStatus('error')
       })
   }, [])
@@ -43,12 +48,9 @@ export function VerifyEmailPage() {
             <>
               <p className="text-white font-medium">Email verified</p>
               <p className="text-gray-400 text-sm">Your account is active. You can now sign in.</p>
-              <Link
-                to="/login"
-                className="inline-block mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-6 py-2.5 rounded-lg transition-colors"
-              >
-                Go to sign in
-              </Link>
+              <Button asChild size="lg" className="mt-2">
+                <Link to="/login">Go to sign in</Link>
+              </Button>
             </>
           )}
 
@@ -58,7 +60,7 @@ export function VerifyEmailPage() {
               <p className="text-gray-400 text-sm">{errorMessage}</p>
               <Link
                 to="/login"
-                className="inline-block mt-2 text-indigo-400 hover:text-indigo-300 text-sm transition-colors"
+                className="inline-block mt-2 text-brand hover:text-brand-hover text-sm transition-colors"
               >
                 Back to sign in
               </Link>

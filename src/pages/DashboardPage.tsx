@@ -1,15 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
-  Package, Users, Building2, ShieldCheck, Activity, ShoppingCart,
-  UserCheck, DollarSign, TrendingUp, AlertTriangle, ArrowRight, Info,
+  Package,
+  Users,
+  Building2,
+  ShieldCheck,
+  Activity,
+  ShoppingCart,
+  UserCheck,
+  DollarSign,
+  TrendingUp,
+  AlertTriangle,
+  ArrowRight,
+  Info,
 } from 'lucide-react'
 import type { DashboardData } from '../api/tenants'
 import { getDashboard, type RecentActivity, type TopProduct } from '../api/tenants'
 import { getAdminStats, getAdminTenants, getAdminAudit } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
 import { OnboardingChecklist } from '../components/OnboardingChecklist'
-import { formatMoney } from '../utils/format'
+import { formatMoney, formatDate } from '../utils/format'
+import { Badge, Card } from '../components/ui'
 
 // ─── Super-admin dashboard ────────────────────────────────────────────────────
 
@@ -32,9 +43,27 @@ function SuperAdminDashboard() {
 
   const cards = stats
     ? [
-        { label: 'Total tenants',  value: stats.totalTenants,  icon: Building2, color: 'text-amber-400',  bg: 'bg-amber-500/10' },
-        { label: 'Total users',    value: stats.totalUsers,    icon: Users,     color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-        { label: 'Total products', value: stats.totalProducts, icon: Package,   color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+        {
+          label: 'Total tenants',
+          value: stats.totalTenants,
+          icon: Building2,
+          color: 'text-amber-400',
+          bg: 'bg-amber-500/10',
+        },
+        {
+          label: 'Total users',
+          value: stats.totalUsers,
+          icon: Users,
+          color: 'text-brand',
+          bg: 'bg-brand/10',
+        },
+        {
+          label: 'Total products',
+          value: stats.totalProducts,
+          icon: Package,
+          color: 'text-emerald-400',
+          bg: 'bg-emerald-500/10',
+        },
       ]
     : []
 
@@ -50,13 +79,13 @@ function SuperAdminDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {showSkeleton
           ? [1, 2, 3].map((i) => (
-              <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <Card key={i} className="p-6">
                 <div className="h-4 bg-gray-800 rounded w-24 mb-4" />
                 <div className="h-8 bg-gray-800 rounded w-16" />
-              </div>
+              </Card>
             ))
           : cards.map(({ label, value, icon: Icon, color, bg }) => (
-              <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <Card key={label} className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-medium text-gray-400">{label}</span>
                   <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}>
@@ -64,20 +93,22 @@ function SuperAdminDashboard() {
                   </div>
                 </div>
                 <p className="text-3xl font-bold text-white">{value}</p>
-              </div>
-            ))
-        }
+              </Card>
+            ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Recent platform activity */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-gray-500" />
               <h2 className="text-sm font-medium text-white">Recent platform activity</h2>
             </div>
-            <Link to="/admin/audit" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+            <Link
+              to="/admin/audit"
+              className="text-xs text-brand hover:text-brand-hover flex items-center gap-1"
+            >
               View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -86,28 +117,34 @@ function SuperAdminDashboard() {
           ) : (
             <ul className="space-y-3">
               {recentAudit.map((e) => (
-                <li key={e.id} className="flex items-start justify-between gap-4 pb-3 border-b border-gray-800 last:border-0 last:pb-0">
+                <li
+                  key={e.id}
+                  className="flex items-start justify-between gap-4 pb-3 border-b border-gray-800 last:border-0 last:pb-0"
+                >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-white">{ACTION_LABELS[e.action] ?? e.action}</p>
                     <p className="text-xs text-gray-500 mt-0.5 truncate">{e.userEmail}</p>
                   </div>
                   <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
-                    {new Date(e.createdAt).toLocaleDateString()}
+                    {formatDate(e.createdAt)}
                   </span>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Card>
 
         {/* Recent tenants */}
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-gray-500" />
               <h2 className="text-sm font-medium text-white">Recent tenants</h2>
             </div>
-            <Link to="/admin" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+            <Link
+              to="/admin"
+              className="text-xs text-brand hover:text-brand-hover flex items-center gap-1"
+            >
               View all <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -126,13 +163,11 @@ function SuperAdminDashboard() {
                       <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">{t.slug}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-                        t.isActive ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-gray-800 text-gray-500 border-gray-700'
-                      }`}>
+                      <Badge variant={t.isActive ? 'success' : 'muted'}>
                         {t.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      </Badge>
                       <span className="text-xs text-gray-500 whitespace-nowrap">
-                        {new Date(t.createdAt).toLocaleDateString()}
+                        {formatDate(t.createdAt)}
                       </span>
                     </div>
                   </Link>
@@ -140,7 +175,7 @@ function SuperAdminDashboard() {
               ))}
             </ul>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   )
@@ -165,7 +200,7 @@ const ACTION_LABELS: Record<string, string> = {
 function ActivityFeed({ items }: { items: RecentActivity[] }) {
   if (items.length === 0) return null
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <Activity className="w-4 h-4 text-gray-500" />
         <h2 className="text-sm font-medium text-white">Recent activity</h2>
@@ -187,13 +222,13 @@ function ActivityFeed({ items }: { items: RecentActivity[] }) {
                 </div>
               </div>
               <span className="text-xs text-gray-500 whitespace-nowrap shrink-0">
-                {new Date(item.createdAt.endsWith('Z') ? item.createdAt : item.createdAt + 'Z').toLocaleDateString()}
+                {formatDate(item.createdAt)}
               </span>
             </li>
           )
         })}
       </ul>
-    </div>
+    </Card>
   )
 }
 
@@ -203,7 +238,7 @@ function TopProducts({ items }: { items: TopProduct[] }) {
   if (items.length === 0) return null
   const max = Math.max(...items.map((p) => p.revenue), 1)
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-4 h-4 text-gray-500" />
         <h2 className="text-sm font-medium text-white">Top products</h2>
@@ -220,7 +255,7 @@ function TopProducts({ items }: { items: TopProduct[] }) {
             <div className="flex items-center gap-3">
               <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-500 rounded-full"
+                  className="h-full bg-brand rounded-full"
                   style={{ width: `${(p.revenue / max) * 100}%` }}
                 />
               </div>
@@ -229,7 +264,7 @@ function TopProducts({ items }: { items: TopProduct[] }) {
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   )
 }
 
@@ -238,7 +273,7 @@ function TopProducts({ items }: { items: TopProduct[] }) {
 function RevenueBreakdown({ data }: { data: DashboardData }) {
   const feeLabel = `${(data.currentFeePercent * 100).toFixed(data.currentFeePercent < 0.01 ? 2 : 0)}%`
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+    <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <DollarSign className="w-4 h-4 text-gray-500" />
         <h2 className="text-sm font-medium text-white">Revenue breakdown</h2>
@@ -266,7 +301,7 @@ function RevenueBreakdown({ data }: { data: DashboardData }) {
           See your Stripe dashboard for your exact payout.
         </p>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -282,10 +317,38 @@ function TenantDashboard() {
 
   const primaryStats = data
     ? [
-        { label: 'Net revenue',   value: formatMoney(data.netRevenue),   sub: `${formatMoney(data.grossRevenue)} gross · AOV ${formatMoney(data.averageOrderValue)}`, icon: DollarSign,  color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-        { label: 'Paid orders',   value: data.paidOrderCount.toString(), sub: `${data.pendingOrderCount} pending`, icon: ShoppingCart, color: 'text-indigo-400',  bg: 'bg-indigo-500/10' },
-        { label: 'Customers',     value: data.customerCount.toString(),  sub: 'total',                             icon: UserCheck,    color: 'text-sky-400',     bg: 'bg-sky-500/10' },
-        { label: 'Products',      value: data.productCount.toString(),   sub: `${data.activeProductCount} active`, icon: Package,      color: 'text-amber-400',   bg: 'bg-amber-500/10' },
+        {
+          label: 'Net revenue',
+          value: formatMoney(data.netRevenue),
+          sub: `${formatMoney(data.grossRevenue)} gross · AOV ${formatMoney(data.averageOrderValue)}`,
+          icon: DollarSign,
+          color: 'text-emerald-400',
+          bg: 'bg-emerald-500/10',
+        },
+        {
+          label: 'Paid orders',
+          value: data.paidOrderCount.toString(),
+          sub: `${data.pendingOrderCount} pending`,
+          icon: ShoppingCart,
+          color: 'text-brand',
+          bg: 'bg-brand/10',
+        },
+        {
+          label: 'Customers',
+          value: data.customerCount.toString(),
+          sub: 'total',
+          icon: UserCheck,
+          color: 'text-sky-400',
+          bg: 'bg-sky-500/10',
+        },
+        {
+          label: 'Products',
+          value: data.productCount.toString(),
+          sub: `${data.activeProductCount} active`,
+          icon: Package,
+          color: 'text-amber-400',
+          bg: 'bg-amber-500/10',
+        },
       ]
     : []
 
@@ -296,19 +359,16 @@ function TenantDashboard() {
           <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
           <p className="text-gray-400 mt-1 text-sm flex items-center gap-2">
             {tenantSlug ? `Tenant: ${tenantSlug}` : 'Overview'}
-            {isAdmin && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                Admin
-              </span>
-            )}
+            {isAdmin && <Badge variant="info">Admin</Badge>}
           </p>
         </div>
         {data && data.pendingOrderCount > 0 && (
           <Link
             to="/orders?status=pending"
-            className="flex items-center gap-2 text-sm font-medium text-indigo-400 hover:text-indigo-300"
+            className="flex items-center gap-2 text-sm font-medium text-brand hover:text-brand-hover"
           >
-            {data.pendingOrderCount} pending order{data.pendingOrderCount !== 1 ? 's' : ''} <ArrowRight className="w-3.5 h-3.5" />
+            {data.pendingOrderCount} pending order{data.pendingOrderCount !== 1 ? 's' : ''}{' '}
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         )}
       </div>
@@ -316,13 +376,13 @@ function TenantDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {showSkeleton
           ? [1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <Card key={i} className="p-6">
                 <div className="h-4 bg-gray-800 rounded w-20 mb-4" />
                 <div className="h-8 bg-gray-800 rounded w-24" />
-              </div>
+              </Card>
             ))
           : primaryStats.map(({ label, value, sub, icon: Icon, color, bg }) => (
-              <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+              <Card key={label} className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-medium text-gray-400">{label}</span>
                   <div className={`w-9 h-9 ${bg} rounded-lg flex items-center justify-center`}>
@@ -331,9 +391,8 @@ function TenantDashboard() {
                 </div>
                 <p className="text-2xl font-bold text-white">{value}</p>
                 <p className="text-xs text-gray-500 mt-1">{sub}</p>
-              </div>
-            ))
-        }
+              </Card>
+            ))}
       </div>
 
       {!isLoading && data && !data.onboardingComplete && (

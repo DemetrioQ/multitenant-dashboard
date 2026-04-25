@@ -3,18 +3,33 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Mail, Pencil, Undo2, CheckCircle2, Circle } from 'lucide-react'
 import {
-  listEmailTemplates, revertEmailTemplate,
+  listEmailTemplates,
+  revertEmailTemplate,
   type EmailTemplateSummary,
 } from '../api/emailTemplates'
 import { useAuth } from '../hooks/useAuth'
 import { formatDateTime } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, Button, Card, useConfirm, useToast } from '../components/ui'
 
 const TYPE_LABELS: Record<string, { title: string; description: string }> = {
-  CustomerVerification:  { title: 'Customer verification', description: 'Sent after a customer registers on your storefront.' },
-  CustomerPasswordReset: { title: 'Password reset',        description: 'Sent when a customer requests a password reset.' },
-  OrderPlaced:           { title: 'Order placed',          description: 'Sent when a customer completes checkout (cash-on-delivery).' },
-  OrderPaid:             { title: 'Order paid',            description: 'Sent when Stripe confirms payment.' },
-  OrderFulfilled:        { title: 'Order fulfilled',       description: 'Sent when you mark an order fulfilled.' },
+  CustomerVerification: {
+    title: 'Customer verification',
+    description: 'Sent after a customer registers on your storefront.',
+  },
+  CustomerPasswordReset: {
+    title: 'Password reset',
+    description: 'Sent when a customer requests a password reset.',
+  },
+  OrderPlaced: {
+    title: 'Order placed',
+    description: 'Sent when a customer completes checkout (cash-on-delivery).',
+  },
+  OrderPaid: { title: 'Order paid', description: 'Sent when Stripe confirms payment.' },
+  OrderFulfilled: {
+    title: 'Order fulfilled',
+    description: 'Sent when you mark an order fulfilled.',
+  },
 }
 
 function effectiveEnabled(t: EmailTemplateSummary): boolean {
@@ -28,7 +43,13 @@ function isCustom(t: EmailTemplateSummary): boolean {
 export function EmailTemplatesPage() {
   const { isAdmin } = useAuth()
   const qc = useQueryClient()
-  const { data: templates = [], isLoading, error } = useQuery({
+  const { confirm, dialog } = useConfirm()
+  const { toast } = useToast()
+  const {
+    data: templates = [],
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['emailTemplates'],
     queryFn: listEmailTemplates,
     enabled: isAdmin,
@@ -38,14 +59,20 @@ export function EmailTemplatesPage() {
 
   const handleRevert = async (t: EmailTemplateSummary) => {
     const label = TYPE_LABELS[t.type]?.title ?? t.type
-    if (!confirm(`Revert "${label}" to the built-in default? Your customisations will be lost.`)) return
+    const ok = await confirm({
+      title: 'Revert to default?',
+      message: `Your customisations to "${label}" will be lost.`,
+      destructive: true,
+      confirmLabel: 'Revert',
+    })
+    if (!ok) return
     setReverting(t.type)
     try {
       await revertEmailTemplate(t.type)
       qc.invalidateQueries({ queryKey: ['emailTemplates'] })
       qc.invalidateQueries({ queryKey: ['emailTemplate', t.type] })
     } catch (err: any) {
-      alert(err?.response?.data?.detail ?? 'Failed to revert template.')
+      toast(err?.response?.data?.detail ?? 'Failed to revert template.', 'error')
     } finally {
       setReverting(null)
     }
@@ -54,7 +81,10 @@ export function EmailTemplatesPage() {
   if (!isAdmin) {
     return (
       <div className="p-4 sm:p-8 max-w-4xl mx-auto">
-        <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+        <Link
+          to="/settings"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to settings
         </Link>
         <div className="text-gray-400 text-sm bg-gray-900 border border-gray-800 rounded-lg px-4 py-3">
@@ -66,7 +96,11 @@ export function EmailTemplatesPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-4xl mx-auto">
-      <Link to="/settings" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+      {dialog}
+      <Link
+        to="/settings"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+      >
         <ArrowLeft className="w-4 h-4" /> Back to settings
       </Link>
 
@@ -78,12 +112,14 @@ export function EmailTemplatesPage() {
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load email templates.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load email templates.
+        </div>
       )}
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <Card className="overflow-hidden">
         {showSpinner ? (
-          <div className="py-16 text-center text-gray-500 text-sm">Loading…</div>
+          <PageLoading className="py-16" />
         ) : templates.length === 0 ? (
           <div className="py-16 flex flex-col items-center gap-3">
             <Mail className="w-8 h-8 text-gray-700" />
@@ -100,17 +136,17 @@ export function EmailTemplatesPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-white text-sm font-medium">{meta.title}</p>
-                      {custom ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-indigo-500/15 text-indigo-300 border-indigo-500/30">
-                          Custom
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-gray-800 text-gray-500 border-gray-700">
-                          Default
-                        </span>
-                      )}
-                      <span className={`inline-flex items-center gap-1 text-xs ${enabled ? 'text-emerald-400' : 'text-gray-500'}`}>
-                        {enabled ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                      <Badge variant={custom ? 'info' : 'muted'}>
+                        {custom ? 'Custom' : 'Default'}
+                      </Badge>
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs ${enabled ? 'text-emerald-400' : 'text-gray-500'}`}
+                      >
+                        {enabled ? (
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <Circle className="w-3.5 h-3.5" />
+                        )}
                         {enabled ? 'Enabled' : 'Disabled'}
                       </span>
                     </div>
@@ -119,33 +155,35 @@ export function EmailTemplatesPage() {
                       {custom && t.customSubject ? t.customSubject : t.defaultSubject}
                     </p>
                     {custom && t.customUpdatedAt && (
-                      <p className="text-xs text-gray-600 mt-1">Updated {formatDateTime(t.customUpdatedAt)}</p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Updated {formatDateTime(t.customUpdatedAt)}
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {custom && (
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleRevert(t)}
                         disabled={reverting === t.type}
-                        className="inline-flex items-center gap-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-gray-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors"
                         title="Revert to default"
                       >
                         <Undo2 className="w-3.5 h-3.5" /> Revert
-                      </button>
+                      </Button>
                     )}
-                    <Link
-                      to={`/settings/emails/${t.type}`}
-                      className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Edit
-                    </Link>
+                    <Button asChild size="sm">
+                      <Link to={`/settings/emails/${t.type}`}>
+                        <Pencil className="w-3.5 h-3.5" /> Edit
+                      </Link>
+                    </Button>
                   </div>
                 </li>
               )
             })}
           </ul>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

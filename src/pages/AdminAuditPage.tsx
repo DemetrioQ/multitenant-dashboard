@@ -4,6 +4,9 @@ import { Navigate } from 'react-router-dom'
 import { ClipboardList, ShieldCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { getAdminAudit, getAdminTenants } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
+import { formatDateTime } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, Card, IconButton, Select } from '../components/ui'
 
 const PAGE_SIZE = 20
 
@@ -22,16 +25,12 @@ const ACTION_LABELS: Record<string, string> = {
 
 function ActionBadge({ action }: { action: string }) {
   const isDestructive = action.includes('deactivated')
-  const isPositive = action.includes('created') || action.includes('invited') || (action.includes('activated') && !isDestructive)
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
-      isDestructive ? 'bg-red-500/10 text-red-400 border-red-500/20'
-      : isPositive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-      : 'bg-gray-800 text-gray-400 border-gray-700'
-    }`}>
-      {ACTION_LABELS[action] ?? action}
-    </span>
-  )
+  const isPositive =
+    action.includes('created') ||
+    action.includes('invited') ||
+    (action.includes('activated') && !isDestructive)
+  const variant = isDestructive ? 'destructive' : isPositive ? 'success' : 'default'
+  return <Badge variant={variant}>{ACTION_LABELS[action] ?? action}</Badge>
 }
 
 export function AdminAuditPage() {
@@ -59,9 +58,7 @@ export function AdminAuditPage() {
 
   if (!isSuperAdmin) return <Navigate to="/dashboard" replace />
 
-  const filtered = filterTenant
-    ? entries.filter((e) => e.tenantId === filterTenant)
-    : entries
+  const filtered = filterTenant ? entries.filter((e) => e.tenantId === filterTenant) : entries
 
   return (
     <div className="p-4 sm:p-8 max-w-6xl mx-auto">
@@ -74,71 +71,90 @@ export function AdminAuditPage() {
       </div>
 
       <div className="flex items-center gap-3 mb-4">
-        <select
+        <Select
           value={filterTenant}
           onChange={(e) => setFilterTenant(e.target.value)}
-          className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-auto"
         >
           <option value="">All tenants</option>
           {tenants.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
           ))}
-        </select>
-        <span className="text-sm text-gray-500">{totalCount} event{totalCount !== 1 ? 's' : ''}</span>
+        </Select>
+        <span className="text-sm text-gray-500">
+          {totalCount} event{totalCount !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {error && (
-        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">Failed to load audit log.</div>
+        <div className="mb-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+          Failed to load audit log.
+        </div>
       )}
 
       {showSpinner ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex items-center justify-center py-20">
-          <p className="text-gray-500 text-sm">Loading...</p>
-        </div>
+        <PageLoading boxed />
       ) : filtered.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl flex flex-col items-center justify-center py-20 gap-3">
+        <Card className="flex flex-col items-center justify-center py-20 gap-3">
           <ClipboardList className="w-8 h-8 text-gray-700" />
           <p className="text-gray-500 text-sm">No audit events found.</p>
-        </div>
+        </Card>
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden sm:block bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto"><table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">User</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Action</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Entity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Details</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">When</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {filtered.map((e) => (
-                  <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4 text-sm text-white">{e.userEmail}</td>
-                    <td className="px-6 py-4"><ActionBadge action={e.action} /></td>
-                    <td className="px-6 py-4 text-sm text-gray-400">{e.entityType}</td>
-                    <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">{e.details ?? '—'}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
-                      {new Date(e.createdAt).toLocaleString()}
-                    </td>
+          <Card className="hidden sm:block overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Action
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Entity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Details
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      When
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {filtered.map((e) => (
+                    <tr key={e.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="px-6 py-4 text-sm text-white">{e.userEmail}</td>
+                      <td className="px-6 py-4">
+                        <ActionBadge action={e.action} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{e.entityType}</td>
+                      <td className="px-6 py-4 text-sm text-gray-300 max-w-xs truncate">
+                        {e.details ?? '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400 whitespace-nowrap">
+                        {formatDateTime(e.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </Card>
 
           {/* Mobile timeline */}
-          <div className="sm:hidden bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 overflow-hidden">
+          <Card className="sm:hidden divide-y divide-gray-800 overflow-hidden">
             {filtered.map((e) => (
               <div key={e.id} className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <ActionBadge action={e.action} />
                   <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">
-                    {new Date(e.createdAt).toLocaleString()}
+                    {formatDateTime(e.createdAt)}
                   </span>
                 </div>
                 <p className="text-sm text-white truncate">{e.userEmail}</p>
@@ -146,22 +162,30 @@ export function AdminAuditPage() {
                 {e.details && <p className="text-xs text-gray-300 mt-2 break-words">{e.details}</p>}
               </div>
             ))}
-          </div>
+          </Card>
         </>
       )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-gray-400">Page {page} of {totalPages}</p>
+          <p className="text-sm text-gray-400">
+            Page {page} of {totalPages}
+          </p>
           <div className="flex gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+            <IconButton
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              aria-label="Previous page"
+            >
               <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="p-2 rounded-lg bg-gray-900 border border-gray-800 text-gray-400 hover:text-white disabled:opacity-40 transition-colors">
+            </IconButton>
+            <IconButton
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              aria-label="Next page"
+            >
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </IconButton>
           </div>
         </div>
       )}

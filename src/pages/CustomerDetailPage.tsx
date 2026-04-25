@@ -4,20 +4,22 @@ import { ArrowLeft, ShoppingCart, MailCheck, MailX } from 'lucide-react'
 import { getCustomer, type CustomerDetail } from '../api/customers'
 import type { OrderStatus } from '../api/orders'
 import { formatMoney, formatDate } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, type BadgeProps, Card } from '../components/ui'
 
-const STATUS_BADGE: Record<OrderStatus, string> = {
-  pending:   'bg-amber-500/15 text-amber-400 border-amber-500/30',
-  paid:      'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-  fulfilled: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  canceled:  'bg-gray-800 text-gray-500 border-gray-700',
-  refunded:  'bg-rose-500/15 text-rose-400 border-rose-500/30',
+const STATUS_VARIANT: Record<OrderStatus, BadgeProps['variant']> = {
+  pending: 'warning',
+  paid: 'info',
+  fulfilled: 'success',
+  canceled: 'muted',
+  refunded: 'rose',
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border capitalize ${STATUS_BADGE[status]}`}>
+    <Badge variant={STATUS_VARIANT[status]} className="capitalize">
       {status}
-    </span>
+    </Badge>
   )
 }
 
@@ -28,7 +30,11 @@ function displayName(c: CustomerDetail): string {
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: customer, isLoading, error } = useQuery<CustomerDetail>({
+  const {
+    data: customer,
+    isLoading,
+    error,
+  } = useQuery<CustomerDetail>({
     queryKey: ['customer', id],
     queryFn: () => getCustomer(id!),
     enabled: !!id,
@@ -39,7 +45,7 @@ export function CustomerDetailPage() {
   if (showSpinner) {
     return (
       <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-        <p className="text-gray-500 text-sm">Loading…</p>
+        <PageLoading className="py-8" />
       </div>
     )
   }
@@ -47,7 +53,10 @@ export function CustomerDetailPage() {
   if (error || !customer) {
     return (
       <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-        <Link to="/customers" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+        <Link
+          to="/customers"
+          className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+        >
           <ArrowLeft className="w-4 h-4" /> Back to customers
         </Link>
         <div className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
@@ -59,18 +68,17 @@ export function CustomerDetailPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-      <Link to="/customers" className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6">
+      <Link
+        to="/customers"
+        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white mb-6"
+      >
         <ArrowLeft className="w-4 h-4" /> Back to customers
       </Link>
 
       <div className="mb-6">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-semibold text-white">{displayName(customer)}</h1>
-          {!customer.isActive && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-gray-800 text-gray-500 border-gray-700">
-              Inactive
-            </span>
-          )}
+          {!customer.isActive && <Badge variant="muted">Inactive</Badge>}
         </div>
         <p className="text-gray-500 text-sm mt-1 inline-flex items-center gap-2">
           {customer.email}
@@ -87,21 +95,23 @@ export function CustomerDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        <Card className="p-5">
           <p className="text-sm font-medium text-gray-400 mb-1">Orders</p>
           <p className="text-2xl font-bold text-white">{customer.orderCount}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+        </Card>
+        <Card className="p-5">
           <p className="text-sm font-medium text-gray-400 mb-1">Lifetime spend</p>
-          <p className="text-2xl font-bold text-white font-mono">{formatMoney(customer.lifetimeSpend)}</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
+          <p className="text-2xl font-bold text-white font-mono">
+            {formatMoney(customer.lifetimeSpend)}
+          </p>
+        </Card>
+        <Card className="p-5">
           <p className="text-sm font-medium text-gray-400 mb-1">Joined</p>
           <p className="text-2xl font-bold text-white">{formatDate(customer.createdAt)}</p>
-        </div>
+        </Card>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <Card className="overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-800 flex items-center gap-2">
           <ShoppingCart className="w-4 h-4 text-gray-500" />
           <h2 className="text-sm font-medium text-white">Order history</h2>
@@ -113,33 +123,46 @@ export function CustomerDetailPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden sm:block overflow-x-auto"><table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/40">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {customer.orders.map((o) => (
-                  <tr key={o.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/orders/${o.id}`}
-                        className="text-sm text-indigo-400 hover:text-indigo-300 font-mono font-medium"
-                      >
-                        {o.number}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
-                    <td className="px-6 py-4 text-sm text-white font-mono text-right">{formatMoney(o.total)}</td>
-                    <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-gray-800 bg-gray-800/40">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Order
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Date
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {customer.orders.map((o) => (
+                    <tr key={o.id} className="hover:bg-gray-800/30 transition-colors">
+                      <td className="px-6 py-4">
+                        <Link
+                          to={`/orders/${o.id}`}
+                          className="text-sm text-brand hover:text-brand-hover font-mono font-medium"
+                        >
+                          {o.number}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={o.status} />
+                      </td>
+                      <td className="px-6 py-4 text-sm text-white font-mono text-right">
+                        {formatMoney(o.total)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-400">{formatDate(o.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Mobile cards */}
@@ -151,7 +174,7 @@ export function CustomerDetailPage() {
                   className="block p-4 hover:bg-gray-800/30 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-indigo-400 font-mono font-medium">{o.number}</span>
+                    <span className="text-sm text-brand font-mono font-medium">{o.number}</span>
                     <StatusBadge status={o.status} />
                   </div>
                   <div className="flex items-center justify-between mt-2 text-xs">
@@ -163,7 +186,7 @@ export function CustomerDetailPage() {
             </div>
           </>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

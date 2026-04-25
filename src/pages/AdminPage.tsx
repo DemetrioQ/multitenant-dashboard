@@ -1,13 +1,36 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Navigate, Link } from 'react-router-dom'
-import { Building2, ShieldCheck, Users, Package, ClipboardList, ArrowRight, TrendingUp } from 'lucide-react'
-import { ResponsiveContainer, AreaChart, Area, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts'
 import {
-  getAdminStats, getAdminTenants, getAdminAudit, getAdminSignups,
-  type SignupsPeriod, type SignupsEntity,
+  Building2,
+  ShieldCheck,
+  Users,
+  Package,
+  ClipboardList,
+  ArrowRight,
+  TrendingUp,
+} from 'lucide-react'
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  Tooltip,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts'
+import {
+  getAdminStats,
+  getAdminTenants,
+  getAdminAudit,
+  getAdminSignups,
+  type SignupsPeriod,
+  type SignupsEntity,
 } from '../api/admin'
 import { useAuth } from '../hooks/useAuth'
+import { parseUtc } from '../utils/format'
+import { PageLoading } from '../components/PageStates'
+import { Badge, Card, Select } from '../components/ui'
 
 const ACTION_LABELS: Record<string, string> = {
   'product.created': 'Product created',
@@ -24,24 +47,31 @@ const ACTION_LABELS: Record<string, string> = {
 
 function ActionBadge({ action }: { action: string }) {
   const isDestructive = action.includes('deactivated')
-  const isPositive = action.includes('created') || action.includes('invited') || (action.includes('activated') && !isDestructive)
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${
-      isDestructive ? 'bg-red-500/10 text-red-400 border-red-500/20'
-      : isPositive ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-      : 'bg-gray-800 text-gray-400 border-gray-700'
-    }`}>
-      {ACTION_LABELS[action] ?? action}
-    </span>
-  )
+  const isPositive =
+    action.includes('created') ||
+    action.includes('invited') ||
+    (action.includes('activated') && !isDestructive)
+  const variant = isDestructive ? 'destructive' : isPositive ? 'success' : 'default'
+  return <Badge variant={variant}>{ACTION_LABELS[action] ?? action}</Badge>
 }
 
-function StatCard({ label, value, icon: Icon, color, bg, sub }: {
-  label: string; value: number; icon: React.ElementType; color: string; bg: string
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  bg,
+  sub,
+}: {
+  label: string
+  value: number
+  icon: React.ElementType
+  color: string
+  bg: string
   sub?: React.ReactNode
 }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 sm:p-6">
+    <Card className="p-5 sm:p-6">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <span className="text-xs sm:text-sm font-medium text-gray-400">{label}</span>
         <div className={`w-8 h-8 sm:w-9 sm:h-9 ${bg} rounded-lg flex items-center justify-center`}>
@@ -50,7 +80,7 @@ function StatCard({ label, value, icon: Icon, color, bg, sub }: {
       </div>
       <p className="text-2xl sm:text-3xl font-bold text-white">{value}</p>
       {sub && <div className="mt-1.5">{sub}</div>}
-    </div>
+    </Card>
   )
 }
 
@@ -64,14 +94,14 @@ function DeltaBadge({ value, label }: { value: number; label: string }) {
 }
 
 const PERIOD_OPTIONS: { value: SignupsPeriod; label: string }[] = [
-  { value: '7d',  label: '7 days' },
+  { value: '7d', label: '7 days' },
   { value: '30d', label: '30 days' },
   { value: '90d', label: '90 days' },
 ]
 
 const ENTITY_OPTIONS: { value: SignupsEntity; label: string }[] = [
-  { value: 'tenants',   label: 'Tenants' },
-  { value: 'users',     label: 'Users' },
+  { value: 'tenants', label: 'Tenants' },
+  { value: 'users', label: 'Users' },
   { value: 'customers', label: 'Customers' },
 ]
 
@@ -90,7 +120,7 @@ function SignupsChart() {
   const showEmpty = !isLoading && total === 0
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-6 mb-4 sm:mb-6">
+    <Card className="p-4 sm:p-6 mb-4 sm:mb-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-gray-400" />
@@ -98,24 +128,28 @@ function SignupsChart() {
           <span className="text-xs text-gray-500">· {total} total</span>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2 sm:flex-shrink-0">
-          <select
+          <Select
             value={entity}
             onChange={(e) => setEntity(e.target.value as SignupsEntity)}
-            className="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-gray-950 text-xs px-2.5 py-1.5"
           >
             {ENTITY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             value={period}
             onChange={(e) => setPeriod(e.target.value as SignupsPeriod)}
-            className="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="bg-gray-950 text-xs px-2.5 py-1.5"
           >
             {PERIOD_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 
@@ -141,7 +175,7 @@ function SignupsChart() {
                 axisLine={false}
                 minTickGap={24}
                 tickFormatter={(v: string) => {
-                  const d = new Date(v)
+                  const d = parseUtc(v)
                   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                 }}
               />
@@ -153,11 +187,27 @@ function SignupsChart() {
                 allowDecimals={false}
               />
               <Tooltip
-                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1f2937', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{
+                  backgroundColor: '#0f172a',
+                  border: '1px solid #1f2937',
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
                 labelStyle={{ color: '#9ca3af' }}
                 itemStyle={{ color: '#fff' }}
-                labelFormatter={(v) => new Date(v as string).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                formatter={(value) => [String(value), entity === 'tenants' ? 'Tenants' : entity === 'users' ? 'Users' : 'Customers'] as [string, string]}
+                labelFormatter={(v) =>
+                  parseUtc(v as string).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })
+                }
+                formatter={(value) =>
+                  [
+                    String(value),
+                    entity === 'tenants' ? 'Tenants' : entity === 'users' ? 'Users' : 'Customers',
+                  ] as [string, string]
+                }
               />
               <Area
                 type="monotone"
@@ -170,12 +220,20 @@ function SignupsChart() {
           </ResponsiveContainer>
         )}
       </div>
-    </div>
+    </Card>
   )
 }
 
-function SectionHeader({ icon: Icon, title, href, linkLabel }: {
-  icon: React.ElementType; title: string; href: string; linkLabel: string
+function SectionHeader({
+  icon: Icon,
+  title,
+  href,
+  linkLabel,
+}: {
+  icon: React.ElementType
+  title: string
+  href: string
+  linkLabel: string
 }) {
   return (
     <div className="flex items-center justify-between mb-3">
@@ -183,7 +241,10 @@ function SectionHeader({ icon: Icon, title, href, linkLabel }: {
         <Icon className="w-4 h-4 text-gray-400" />
         <h2 className="text-sm font-semibold text-white">{title}</h2>
       </div>
-      <Link to={href} className="inline-flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+      <Link
+        to={href}
+        className="inline-flex items-center gap-1 text-xs font-medium text-brand hover:text-brand-hover transition-colors"
+      >
         {linkLabel} <ArrowRight className="w-3.5 h-3.5" />
       </Link>
     </div>
@@ -191,7 +252,7 @@ function SectionHeader({ icon: Icon, title, href, linkLabel }: {
 }
 
 function timeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime()
+  const diffMs = Date.now() - parseUtc(iso).getTime()
   const sec = Math.floor(diffMs / 1000)
   if (sec < 60) return 'just now'
   const min = Math.floor(sec / 60)
@@ -270,14 +331,18 @@ export function AdminPage() {
 
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 sm:px-5 sm:py-4">
+          <Card className="px-4 py-3 sm:px-5 sm:py-4">
             <p className="text-xs text-gray-500">Active tenants</p>
-            <p className="text-lg sm:text-xl font-semibold text-emerald-400 mt-0.5">{stats.activeTenants}</p>
-          </div>
-          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 sm:px-5 sm:py-4">
+            <p className="text-lg sm:text-xl font-semibold text-emerald-400 mt-0.5">
+              {stats.activeTenants}
+            </p>
+          </Card>
+          <Card className="px-4 py-3 sm:px-5 sm:py-4">
             <p className="text-xs text-gray-500">Inactive tenants</p>
-            <p className="text-lg sm:text-xl font-semibold text-gray-400 mt-0.5">{stats.inactiveTenants}</p>
-          </div>
+            <p className="text-lg sm:text-xl font-semibold text-gray-400 mt-0.5">
+              {stats.inactiveTenants}
+            </p>
+          </Card>
         </div>
       )}
 
@@ -286,12 +351,15 @@ export function AdminPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Recently added tenants */}
         <section>
-          <SectionHeader icon={Building2} title="Recently added tenants" href="/tenants" linkLabel="Manage" />
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <SectionHeader
+            icon={Building2}
+            title="Recently added tenants"
+            href="/tenants"
+            linkLabel="Manage"
+          />
+          <Card className="overflow-hidden">
             {tenantsLoading && !recentTenantsData ? (
-              <div className="flex items-center justify-center py-10">
-                <p className="text-gray-500 text-sm">Loading…</p>
-              </div>
+              <PageLoading className="py-10" />
             ) : recentTenants.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Building2 className="w-6 h-6 text-gray-700" />
@@ -319,17 +387,20 @@ export function AdminPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </section>
 
         {/* Recent activity */}
         <section>
-          <SectionHeader icon={ClipboardList} title="Recent activity" href="/admin/audit" linkLabel="View all" />
-          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <SectionHeader
+            icon={ClipboardList}
+            title="Recent activity"
+            href="/admin/audit"
+            linkLabel="View all"
+          />
+          <Card className="overflow-hidden">
             {auditLoading && !recentAuditData ? (
-              <div className="flex items-center justify-center py-10">
-                <p className="text-gray-500 text-sm">Loading…</p>
-              </div>
+              <PageLoading className="py-10" />
             ) : recentAudit.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <ClipboardList className="w-6 h-6 text-gray-700" />
@@ -350,7 +421,7 @@ export function AdminPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </section>
       </div>
     </div>
