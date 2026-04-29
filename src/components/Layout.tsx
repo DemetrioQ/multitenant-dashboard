@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Menu,
   X,
+  Code2,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -152,9 +153,14 @@ export function Layout() {
                 <Settings className="w-4 h-4 flex-shrink-0" /> Settings
               </NavLink>
               {isAdmin && (
-                <NavLink to="/audit" className={navClass}>
-                  <ClipboardList className="w-4 h-4 flex-shrink-0" /> Audit log
-                </NavLink>
+                <>
+                  <NavLink to="/developer" className={navClass}>
+                    <Code2 className="w-4 h-4 flex-shrink-0" /> Developer
+                  </NavLink>
+                  <NavLink to="/audit" className={navClass}>
+                    <ClipboardList className="w-4 h-4 flex-shrink-0" /> Audit log
+                  </NavLink>
+                </>
               )}
             </>
           )}

@@ -20,6 +20,7 @@ import { TeamPage } from '../pages/TeamPage'
 import { TenantSettingsPage } from '../pages/TenantSettingsPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { AuditPage } from '../pages/AuditPage'
+import { DeveloperPage } from '../pages/DeveloperPage'
 
 // Lazy imports — admin (super-admin only) + niche admin settings (separate chunks).
 const AdminPage = lazy(() => import('../pages/AdminPage').then((m) => ({ default: m.AdminPage })))
@@ -79,6 +80,7 @@ export function AppRouter() {
             <Route path="/settings/emails" element={<EmailTemplatesPage />} />
             <Route path="/settings/emails/:type" element={<EmailTemplateEditorPage />} />
             <Route path="/audit" element={<AuditPage />} />
+            <Route path="/developer" element={<DeveloperPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/admin/tenants/:id" element={<AdminTenantDetailPage />} />
             <Route path="/admin/products" element={<AdminProductsPage />} />
