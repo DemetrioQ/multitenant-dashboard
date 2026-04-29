@@ -279,7 +279,7 @@ function CreateClientModal({
           <p className="text-xs text-gray-500 mt-1">
             A label so you can identify this client later. The client ID is generated server-side.
           </p>
-          {error && <FieldError>{error}</FieldError>}
+          <FieldError message={error} />
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
