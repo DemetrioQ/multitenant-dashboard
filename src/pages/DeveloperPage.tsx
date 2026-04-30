@@ -6,8 +6,10 @@ import {
   createOAuthClient,
   getOAuthClients,
   revokeOAuthClient,
+  OAUTH_SCOPES,
   type CreatedOAuthClient,
   type OAuthClient,
+  type OAuthScope,
 } from '../api/oauthClients'
 import { useAuth } from '../hooks/useAuth'
 import { formatDateTime } from '../utils/format'
@@ -17,6 +19,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   FieldError,
   IconButton,
   Input,
@@ -139,6 +142,9 @@ export function DeveloperPage() {
                       Status
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Scopes
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       Last used
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
@@ -158,6 +164,9 @@ export function DeveloperPage() {
                         ) : (
                           <Badge variant="success">Active</Badge>
                         )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <ScopeList scopes={c.scopes} />
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-400 whitespace-nowrap">
                         {relativeTime(c.lastUsedAt)}
@@ -196,6 +205,9 @@ export function DeveloperPage() {
                   )}
                 </div>
                 <p className="text-xs font-mono text-gray-400 break-all mb-2">{c.clientId}</p>
+                <div className="mb-2">
+                  <ScopeList scopes={c.scopes} />
+                </div>
                 <p className="text-xs text-gray-500">
                   Last used {relativeTime(c.lastUsedAt)} · Created {formatDateTime(c.createdAt)}
                 </p>
@@ -241,11 +253,13 @@ function CreateClientModal({
   onCreated: (result: CreatedOAuthClient) => void
 }) {
   const [name, setName] = useState('')
+  const [scopes, setScopes] = useState<Set<OAuthScope>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   const mutation = useMutation({
-    mutationFn: createOAuthClient,
+    mutationFn: ({ name, scopes }: { name: string; scopes: OAuthScope[] }) =>
+      createOAuthClient(name, scopes),
     onSuccess: (result) => onCreated(result),
     onError: () => {
       setError('Failed to create client.')
@@ -254,13 +268,26 @@ function CreateClientModal({
   })
 
   const trimmed = name.trim()
-  const canSubmit = trimmed.length > 0 && trimmed.length <= 100 && !mutation.isPending
+  const canSubmit =
+    trimmed.length > 0 && trimmed.length <= 100 && scopes.size > 0 && !mutation.isPending
+
+  const toggleScope = (s: OAuthScope) =>
+    setScopes((prev) => {
+      const next = new Set(prev)
+      if (next.has(s)) next.delete(s)
+      else next.add(s)
+      return next
+    })
+
+  const allSelected = scopes.size === OAUTH_SCOPES.length
+  const toggleAll = () =>
+    setScopes(allSelected ? new Set() : new Set(OAUTH_SCOPES.map((s) => s.value)))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!canSubmit) return
     setError(null)
-    mutation.mutate(trimmed)
+    mutation.mutate({ name: trimmed, scopes: Array.from(scopes) })
   }
 
   return (
@@ -279,6 +306,41 @@ function CreateClientModal({
           <p className="text-xs text-gray-500 mt-1">
             A label so you can identify this client later. The client ID is generated server-side.
           </p>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <Label>Scopes</Label>
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs text-indigo-400 hover:text-indigo-300"
+            >
+              {allSelected ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
+          <div className="space-y-2 rounded-md border border-gray-800 bg-gray-900 p-3">
+            {OAUTH_SCOPES.map((scope) => (
+              <label
+                key={scope.value}
+                className="flex items-start gap-2 text-sm text-gray-200 cursor-pointer"
+              >
+                <Checkbox
+                  checked={scopes.has(scope.value)}
+                  onChange={() => toggleScope(scope.value)}
+                  className="mt-0.5"
+                />
+                <span>
+                  {scope.label}{' '}
+                  <code className="text-xs text-gray-500 font-mono">{scope.value}</code>
+                </span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Pick the minimum needed. You can't change scopes after creation — generate a new client
+            instead.
+          </p>
           <FieldError message={error} />
         </div>
 
@@ -292,6 +354,24 @@ function CreateClientModal({
         </div>
       </form>
     </Modal>
+  )
+}
+
+function ScopeList({ scopes }: { scopes: OAuthScope[] }) {
+  if (scopes.length === 0) {
+    return <span className="text-xs text-gray-500">No scopes</span>
+  }
+  return (
+    <div className="flex flex-wrap gap-1">
+      {scopes.map((s) => (
+        <span
+          key={s}
+          className="px-1.5 py-0.5 rounded text-xs font-mono bg-gray-800 text-gray-300 border border-gray-700"
+        >
+          {s}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -322,6 +402,13 @@ function SecretRevealModal({
             This is the only time the client secret will be shown. Copy it now and store it
             somewhere safe.
           </p>
+        </div>
+
+        <div>
+          <Label>Granted scopes</Label>
+          <div className="mt-1">
+            <ScopeList scopes={client.scopes} />
+          </div>
         </div>
 
         <CredentialField
