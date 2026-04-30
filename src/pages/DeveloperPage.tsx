@@ -8,7 +8,9 @@ import {
   revokeOAuthClient,
   OAUTH_SCOPES,
   type CreatedOAuthClient,
+  type CreateOAuthClientInput,
   type OAuthClient,
+  type OAuthClientType,
   type OAuthScope,
 } from '../api/oauthClients'
 import { useAuth } from '../hooks/useAuth'
@@ -253,13 +255,14 @@ function CreateClientModal({
   onCreated: (result: CreatedOAuthClient) => void
 }) {
   const [name, setName] = useState('')
+  const [clientType, setClientType] = useState<OAuthClientType>('confidential')
   const [scopes, setScopes] = useState<Set<OAuthScope>>(new Set())
+  const [redirectUris, setRedirectUris] = useState('')
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
   const mutation = useMutation({
-    mutationFn: ({ name, scopes }: { name: string; scopes: OAuthScope[] }) =>
-      createOAuthClient(name, scopes),
+    mutationFn: (input: CreateOAuthClientInput) => createOAuthClient(input),
     onSuccess: (result) => onCreated(result),
     onError: () => {
       setError('Failed to create client.')
@@ -268,8 +271,19 @@ function CreateClientModal({
   })
 
   const trimmed = name.trim()
+  const parsedRedirects = redirectUris
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const redirectsValid =
+    clientType === 'confidential' ||
+    (parsedRedirects.length > 0 && parsedRedirects.every(isAbsoluteUri))
   const canSubmit =
-    trimmed.length > 0 && trimmed.length <= 100 && scopes.size > 0 && !mutation.isPending
+    trimmed.length > 0 &&
+    trimmed.length <= 100 &&
+    scopes.size > 0 &&
+    redirectsValid &&
+    !mutation.isPending
 
   const toggleScope = (s: OAuthScope) =>
     setScopes((prev) => {
@@ -287,7 +301,12 @@ function CreateClientModal({
     e.preventDefault()
     if (!canSubmit) return
     setError(null)
-    mutation.mutate({ name: trimmed, scopes: Array.from(scopes) })
+    mutation.mutate({
+      name: trimmed,
+      scopes: Array.from(scopes),
+      clientType,
+      redirectUris: clientType === 'public' ? parsedRedirects : undefined,
+    })
   }
 
   return (
@@ -307,6 +326,43 @@ function CreateClientModal({
             A label so you can identify this client later. The client ID is generated server-side.
           </p>
         </div>
+
+        <div>
+          <Label>Client type</Label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <ClientTypeOption
+              value="confidential"
+              selected={clientType === 'confidential'}
+              onSelect={() => setClientType('confidential')}
+              title="Confidential"
+              hint="Server-to-server (CI, cron, scheduled jobs). Returns a secret."
+            />
+            <ClientTypeOption
+              value="public"
+              selected={clientType === 'public'}
+              onSelect={() => setClientType('public')}
+              title="Public"
+              hint="CLI tools, MCP servers, browser apps. PKCE — no secret."
+            />
+          </div>
+        </div>
+
+        {clientType === 'public' && (
+          <div>
+            <Label htmlFor="redirect-uris">Redirect URIs</Label>
+            <textarea
+              id="redirect-uris"
+              value={redirectUris}
+              onChange={(e) => setRedirectUris(e.target.value)}
+              placeholder={'http://127.0.0.1:54321/callback\nhttp://localhost:54321/callback'}
+              rows={3}
+              className="w-full mt-1 px-3 py-2 rounded-md border border-gray-700 bg-gray-900 text-sm text-gray-200 font-mono placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              One URI per line. Only redirects to these exact URIs will be accepted during auth.
+            </p>
+          </div>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -357,6 +413,43 @@ function CreateClientModal({
   )
 }
 
+function ClientTypeOption({
+  selected,
+  onSelect,
+  title,
+  hint,
+}: {
+  value: OAuthClientType
+  selected: boolean
+  onSelect: () => void
+  title: string
+  hint: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`text-left px-3 py-2 rounded-md border transition-colors ${
+        selected
+          ? 'border-indigo-500 bg-indigo-500/10'
+          : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+      }`}
+    >
+      <p className="text-sm font-medium text-white">{title}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{hint}</p>
+    </button>
+  )
+}
+
+function isAbsoluteUri(s: string): boolean {
+  try {
+    const u = new URL(s)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function ScopeList({ scopes }: { scopes: OAuthScope[] }) {
   if (scopes.length === 0) {
     return <span className="text-xs text-gray-500">No scopes</span>
@@ -393,14 +486,16 @@ function SecretRevealModal({
     }
   }
 
+  const isPublic = client.clientType === 'public'
   return (
     <Modal title="Client created" onClose={onClose}>
       <div className="space-y-4">
         <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
           <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-amber-200">
-            This is the only time the client secret will be shown. Copy it now and store it
-            somewhere safe.
+            {isPublic
+              ? 'Public clients have no secret — they authenticate via PKCE. Copy the Client ID below; this dialog is the only place it surfaces.'
+              : 'This is the only time the client secret will be shown. Copy it now and store it somewhere safe.'}
           </p>
         </div>
 
@@ -411,17 +506,35 @@ function SecretRevealModal({
           </div>
         </div>
 
+        {isPublic && client.redirectUris.length > 0 && (
+          <div>
+            <Label>Redirect URIs</Label>
+            <ul className="mt-1 space-y-1">
+              {client.redirectUris.map((uri) => (
+                <li
+                  key={uri}
+                  className="px-3 py-1.5 rounded-md bg-gray-900 border border-gray-800 text-xs font-mono text-gray-300 break-all"
+                >
+                  {uri}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <CredentialField
           label="Client ID"
           value={client.clientId}
           onCopy={() => copy(client.clientId, 'Client ID')}
         />
-        <CredentialField
-          label="Client Secret"
-          value={client.clientSecret}
-          onCopy={() => copy(client.clientSecret, 'Client secret')}
-          monospace
-        />
+        {client.clientSecret && (
+          <CredentialField
+            label="Client Secret"
+            value={client.clientSecret}
+            onCopy={() => copy(client.clientSecret!, 'Client secret')}
+            monospace
+          />
+        )}
 
         <div className="flex justify-end pt-2">
           <Button onClick={onClose}>Done</Button>

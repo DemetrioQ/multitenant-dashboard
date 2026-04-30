@@ -21,6 +21,7 @@ import { TenantSettingsPage } from '../pages/TenantSettingsPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { AuditPage } from '../pages/AuditPage'
 import { DeveloperPage } from '../pages/DeveloperPage'
+import { OAuthConsentPage } from '../pages/OAuthConsentPage'
 
 // Lazy imports — admin (super-admin only) + niche admin settings (separate chunks).
 const AdminPage = lazy(() => import('../pages/AdminPage').then((m) => ({ default: m.AdminPage })))
@@ -63,6 +64,9 @@ export function AppRouter() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+          {/* OAuth consent page is auth-aware itself (redirects to /login with return URL),
+              so it lives outside the ProtectedLayout to avoid the generic auth bounce. */}
+          <Route path="/oauth/consent" element={<OAuthConsentPage />} />
 
           {/* Protected */}
           <Route element={<ProtectedLayout />}>

@@ -145,14 +145,23 @@ function UnverifiedEmailView({ slug, email, canResendAt, onBack }: UnverifiedEma
   )
 }
 
+// Same-origin path validation prevents open-redirect via the ?return= param.
+function safeReturnPath(raw: string | null): string {
+  if (!raw) return '/dashboard'
+  // Must start with a single slash, can't be scheme-relative ("//evil.com").
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/dashboard'
+  return raw
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, signIn } = useAuth()
   const flash = (location.state as { flash?: string } | null)?.flash ?? null
+  const returnTo = safeReturnPath(new URLSearchParams(location.search).get('return'))
 
   useEffect(() => {
-    if (isAuthenticated) navigate('/dashboard', { replace: true })
+    if (isAuthenticated) navigate(returnTo, { replace: true })
   }, [isAuthenticated])
 
   const [mode, setMode] = useState<Mode>('signin')
@@ -231,7 +240,7 @@ export function LoginPage() {
         localStorage.removeItem('rememberedEmail')
       }
       signIn(data.jwtToken)
-      navigate('/dashboard')
+      navigate(returnTo)
     } catch (err: any) {
       if (err.response?.status === 429) {
         loginRateLimit.limit(retryAfterSecs(err))
