@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
 import { useDropzone } from 'react-dropzone'
@@ -37,17 +37,28 @@ export function ImageCropModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
     setCroppedAreaPixels(pixels)
   }, [])
 
+  const releaseObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+  }
+
   const handleFile = (file: File) => {
     setError(null)
-    const reader = new FileReader()
-    reader.onload = () => setImageSrc(reader.result as string)
-    reader.readAsDataURL(file)
+    releaseObjectUrl()
+    const url = URL.createObjectURL(file)
+    objectUrlRef.current = url
+    setImageSrc(url)
   }
+
+  useEffect(() => releaseObjectUrl, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop: (accepted) => {
@@ -58,6 +69,7 @@ export function ImageCropModal({
   })
 
   const reset = () => {
+    releaseObjectUrl()
     setImageSrc(null)
     setCrop({ x: 0, y: 0 })
     setZoom(1)
@@ -81,8 +93,13 @@ export function ImageCropModal({
       const url = res[0]!.ufsUrl
       await onUpload(url)
       handleClose()
-    } catch {
-      setError('Failed to upload image. Please try again.')
+    } catch (err) {
+      console.error('[ImageCropModal] upload failed', err)
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : 'Failed to upload image. Please try again.'
+      setError(message)
     } finally {
       setUploading(false)
     }
