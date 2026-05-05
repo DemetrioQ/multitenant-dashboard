@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
@@ -50,7 +50,9 @@ const emptyForm: ProductForm = { name: '', description: '', price: '', stock: ''
 function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 'md' }) {
   const dim = size === 'md' ? 'w-14 h-14' : 'w-10 h-10'
   const icon = size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
-  if (!src) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [src])
+  if (!src || failed) {
     return (
       <div
         className={`${dim} rounded-lg bg-gray-800 border border-gray-700 flex items-center justify-center flex-shrink-0`}
@@ -61,11 +63,10 @@ function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 
   }
   return (
     <img
+      key={src}
       src={src}
       alt=""
-      onError={(e) => {
-        ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-      }}
+      onError={() => setFailed(true)}
       className={`${dim} rounded-lg object-cover bg-gray-800 border border-gray-700 flex-shrink-0`}
     />
   )
