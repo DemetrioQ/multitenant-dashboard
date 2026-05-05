@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import Cropper from 'react-easy-crop'
 import type { Area } from 'react-easy-crop'
-import { useDropzone } from 'react-dropzone'
 import { Upload } from 'lucide-react'
 import getCroppedImg from '../utils/cropImage'
 import { uploadFiles } from '../uploadthing/client'
@@ -20,6 +19,40 @@ interface Props {
   maxSizeLabel?: string
 }
 
+const MAX_PREVIEW_DIMENSION = 2000
+
+async function downscaleIfHuge(file: File): Promise<Blob> {
+  if (typeof createImageBitmap !== 'function') return file
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file)
+  } catch {
+    return file
+  }
+  const { width, height } = bitmap
+  const longest = Math.max(width, height)
+  if (longest <= MAX_PREVIEW_DIMENSION) {
+    bitmap.close?.()
+    return file
+  }
+  const scale = MAX_PREVIEW_DIMENSION / longest
+  const w = Math.round(width * scale)
+  const h = Math.round(height * scale)
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    bitmap.close?.()
+    return file
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  bitmap.close?.()
+  return await new Promise<Blob>((resolve) => {
+    canvas.toBlob((b) => resolve(b ?? file), 'image/jpeg', 0.92)
+  })
+}
+
 export function ImageCropModal({
   open,
   onClose,
@@ -31,12 +64,15 @@ export function ImageCropModal({
   fileNamePrefix = 'image',
   maxSizeLabel = 'Max 2 MB',
 }: Props) {
+  const inputId = useId()
   const [imageSrc, setImageSrc] = useState<string | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [loadingFile, setLoadingFile] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isDragActive, setIsDragActive] = useState(false)
   const objectUrlRef = useRef<string | null>(null)
 
   const onCropComplete = useCallback((_: Area, pixels: Area) => {
@@ -50,23 +86,24 @@ export function ImageCropModal({
     }
   }
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     setError(null)
-    releaseObjectUrl()
-    const url = URL.createObjectURL(file)
-    objectUrlRef.current = url
-    setImageSrc(url)
+    setLoadingFile(true)
+    try {
+      const blob = await downscaleIfHuge(file)
+      releaseObjectUrl()
+      const url = URL.createObjectURL(blob)
+      objectUrlRef.current = url
+      setImageSrc(url)
+    } catch (err) {
+      console.error('[ImageCropModal] failed to load file', err)
+      setError('Could not read that file. Try a different image.')
+    } finally {
+      setLoadingFile(false)
+    }
   }
 
   useEffect(() => releaseObjectUrl, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop: (accepted) => {
-      if (accepted[0]) handleFile(accepted[0])
-    },
-    accept: { 'image/*': [] },
-    multiple: false,
-  })
 
   const reset = () => {
     releaseObjectUrl()
@@ -105,26 +142,63 @@ export function ImageCropModal({
     }
   }
 
+  const onDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragActive(true)
+  }
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragActive(false)
+  }
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragActive(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type.startsWith('image/')) handleFile(file)
+  }
+
   if (!open) return null
 
   return (
     <Modal title={title} onClose={handleClose}>
       {!imageSrc ? (
-        <div
-          {...getRootProps()}
+        <label
+          htmlFor={inputId}
+          onDragEnter={onDragEnter}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
           className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer aspect-square w-full transition-colors ${
             isDragActive
               ? 'bg-indigo-500/10 border-indigo-500'
               : 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
           }`}
         >
-          <input {...getInputProps()} />
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={loadingFile}
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void handleFile(file)
+            }}
+          />
           <Upload className="w-8 h-8 text-gray-500 mb-3" />
           <p className="text-sm text-gray-400">
-            {isDragActive ? 'Drop the image here...' : 'Drag & drop or click to select'}
+            {loadingFile
+              ? 'Loading...'
+              : isDragActive
+                ? 'Drop the image here...'
+                : 'Drag & drop or click to select'}
           </p>
           <p className="text-xs text-gray-600 mt-1">{maxSizeLabel}</p>
-        </div>
+        </label>
       ) : (
         <>
           <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-800">
