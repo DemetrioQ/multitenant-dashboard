@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus,
@@ -21,6 +21,7 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { Modal } from '../components/Modal'
 import { ImageCropModal } from '../components/ImageCropModal'
+import { StorefrontPreview, type PreviewProductInput } from '../components/StorefrontPreview'
 import { formatMoney } from '../utils/format'
 import { PageLoading } from '../components/PageStates'
 import {
@@ -47,11 +48,27 @@ interface ProductForm {
 
 const emptyForm: ProductForm = { name: '', description: '', price: '', stock: '', imageUrl: '' }
 
+function toPreview(form: ProductForm): PreviewProductInput {
+  return {
+    name: form.name,
+    description: form.description,
+    price: parseFloat(form.price) || 0,
+    stock: parseInt(form.stock, 10) || 0,
+    imageUrl: form.imageUrl.trim() || null,
+  }
+}
+
+// Keying the inner component by src guarantees a fresh `failed` state every
+// time the URL changes, so a previously-failed image isn't permanently hidden
+// when the product is updated to a new image.
 function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 'md' }) {
+  return <ProductThumbInner key={src ?? '_placeholder'} src={src} size={size} />
+}
+
+function ProductThumbInner({ src, size }: { src: string | null; size: 'sm' | 'md' }) {
   const dim = size === 'md' ? 'w-14 h-14' : 'w-10 h-10'
   const icon = size === 'md' ? 'w-5 h-5' : 'w-4 h-4'
   const [failed, setFailed] = useState(false)
-  useEffect(() => setFailed(false), [src])
   if (!src || failed) {
     return (
       <div
@@ -63,7 +80,6 @@ function ProductThumb({ src, size = 'sm' }: { src: string | null; size?: 'sm' | 
   }
   return (
     <img
-      key={src}
       src={src}
       alt=""
       onError={() => setFailed(true)}
@@ -193,7 +209,7 @@ function ProductFormFields({
 }
 
 export function ProductsPage({ initialCreate = false }: { initialCreate?: boolean }) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, storeUrl } = useAuth()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
 
@@ -528,62 +544,74 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       )}
 
       {showCreate && (
-        <Modal title="Add Product" onClose={() => setShowCreate(false)}>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <ProductFormFields
-              form={createForm}
-              onChange={setCreateForm}
-              onOpenImageUpload={() => setImageUploadTarget('create')}
-            />
-            {createError && (
-              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
-                {createError}
-              </p>
-            )}
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setShowCreate(false)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createLoading} className="flex-1">
-                {createLoading ? 'Creating…' : 'Create'}
-              </Button>
+        <Modal title="Add Product" onClose={() => setShowCreate(false)} size="lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleCreate} className="space-y-4">
+              <ProductFormFields
+                form={createForm}
+                onChange={setCreateForm}
+                onOpenImageUpload={() => setImageUploadTarget('create')}
+              />
+              {createError && (
+                <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                  {createError}
+                </p>
+              )}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowCreate(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createLoading} className="flex-1">
+                  {createLoading ? 'Creating…' : 'Create'}
+                </Button>
+              </div>
+            </form>
+            <div className="md:min-h-[500px]">
+              <p className="text-xs text-gray-500 mb-2">Storefront preview</p>
+              <StorefrontPreview storeUrl={storeUrl} product={toPreview(createForm)} />
             </div>
-          </form>
+          </div>
         </Modal>
       )}
 
       {editing && (
-        <Modal title="Edit Product" onClose={() => setEditing(null)}>
-          <form onSubmit={handleEdit} className="space-y-4">
-            <ProductFormFields
-              form={editForm}
-              onChange={setEditForm}
-              onOpenImageUpload={() => setImageUploadTarget('edit')}
-            />
-            {editError && (
-              <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
-                {editError}
-              </p>
-            )}
-            <div className="flex gap-3 pt-2">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setEditing(null)}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={editLoading} className="flex-1">
-                {editLoading ? 'Saving…' : 'Save'}
-              </Button>
+        <Modal title="Edit Product" onClose={() => setEditing(null)} size="lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleEdit} className="space-y-4">
+              <ProductFormFields
+                form={editForm}
+                onChange={setEditForm}
+                onOpenImageUpload={() => setImageUploadTarget('edit')}
+              />
+              {editError && (
+                <p className="text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-2">
+                  {editError}
+                </p>
+              )}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setEditing(null)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={editLoading} className="flex-1">
+                  {editLoading ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </form>
+            <div className="md:min-h-[500px]">
+              <p className="text-xs text-gray-500 mb-2">Storefront preview</p>
+              <StorefrontPreview storeUrl={storeUrl} product={toPreview(editForm)} />
             </div>
-          </form>
+          </div>
         </Modal>
       )}
 

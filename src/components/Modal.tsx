@@ -1,16 +1,26 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
+
 interface ModalProps {
   title: string
   onClose: () => void
   children: ReactNode
+  size?: ModalSize
+}
+
+const SIZE_CLASS: Record<ModalSize, string> = {
+  sm: 'max-w-md',
+  md: 'max-w-2xl',
+  lg: 'max-w-4xl',
+  xl: 'max-w-6xl',
 }
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
-export function Modal({ title, onClose, children }: ModalProps) {
+export function Modal({ title, onClose, children, size = 'sm' }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -60,7 +70,7 @@ export function Modal({ title, onClose, children }: ModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl"
+        className={`relative w-full ${SIZE_CLASS[size]} bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl`}
       >
         <div className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-800">
           <h2 id={titleId} className="text-base font-semibold text-white">
