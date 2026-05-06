@@ -64,11 +64,12 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
   const [scale, setScale] = useState(1)
 
   // Fit the iframe (rendered at its intrinsic dimensions) inside the
-  // available stage width via CSS transform: scale(...). We never up-scale
-  // beyond 1; mobile usually fits without any scaling.
+  // available stage width via CSS transform: scale(...). Only relevant for
+  // the detail view's viewport toggle — the card view skips scaling entirely
+  // and just fills the column.
   useLayoutEffect(() => {
     const stage = stageRef.current
-    if (!stage) return
+    if (!stage || view !== 'detail') return
     const dim = VIEWPORT_DIM[viewport]
     function recalc() {
       if (!stage) return
@@ -78,7 +79,7 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
     const ro = new ResizeObserver(recalc)
     ro.observe(stage)
     return () => ro.disconnect()
-  }, [viewport])
+  }, [viewport, view])
 
   // The iframe src is fixed at mount — subsequent updates use postMessage so
   // the iframe doesn't reload on every keystroke. We only rebuild the URL
@@ -117,11 +118,23 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
   }
 
   const dim = VIEWPORT_DIM[viewport]
-  // The wrapper is sized to the iframe's *visual* (post-transform) box.
-  // CSS transforms don't change layout size, so without this trick the
-  // iframe's 1280×900 layout box would push the modal much taller than
-  // what's actually visible.
-  const visualHeight = dim.h * scale
+  // For detail view the wrapper is sized to the iframe's *visual*
+  // (post-transform) box — CSS transforms don't change layout size, so
+  // without this trick the iframe's 1280×900 layout box would push the
+  // modal much taller than what's actually visible. Card view skips this
+  // entirely and just fills the column.
+  const isDetail = view === 'detail'
+  const wrapperStyle: React.CSSProperties = isDetail
+    ? { width: dim.w * scale, height: dim.h * scale }
+    : { width: '100%', height: '100%' }
+  const iframeStyle: React.CSSProperties = isDetail
+    ? {
+        width: `${dim.w}px`,
+        height: `${dim.h}px`,
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+      }
+    : { width: '100%', height: '100%' }
 
   return (
     <div className="flex flex-col h-full min-h-[400px] rounded-lg border border-gray-800 bg-gray-950 overflow-hidden">
@@ -135,20 +148,22 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
           </ViewTab>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex gap-1">
-            <ViewTab
-              active={viewport === 'mobile'}
-              onClick={() => setViewport('mobile')}
-              icon={Smartphone}
-              title="Mobile preview (390px)"
-            />
-            <ViewTab
-              active={viewport === 'desktop'}
-              onClick={() => setViewport('desktop')}
-              icon={Monitor}
-              title="Desktop preview (1280px, scaled to fit)"
-            />
-          </div>
+          {isDetail && (
+            <div className="flex gap-1">
+              <ViewTab
+                active={viewport === 'mobile'}
+                onClick={() => setViewport('mobile')}
+                icon={Smartphone}
+                title="Mobile preview (390px)"
+              />
+              <ViewTab
+                active={viewport === 'desktop'}
+                onClick={() => setViewport('desktop')}
+                icon={Monitor}
+                title="Desktop preview (1280px, scaled to fit)"
+              />
+            </div>
+          )}
           <a
             href={storeUrl}
             target="_blank"
@@ -161,19 +176,17 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
           </a>
         </div>
       </div>
-      <div ref={stageRef} className="flex-1 overflow-auto bg-gray-950 p-2">
-        <div className="relative mx-auto" style={{ width: dim.w * scale, height: visualHeight }}>
+      <div
+        ref={stageRef}
+        className={`flex-1 bg-gray-950 ${isDetail ? 'overflow-auto p-2' : 'overflow-hidden'}`}
+      >
+        <div className="relative mx-auto" style={wrapperStyle}>
           <iframe
             ref={iframeRef}
             src={initialSrc ?? undefined}
             title="Storefront preview"
             className="bg-white border-0 absolute top-0 left-0"
-            style={{
-              width: `${dim.w}px`,
-              height: `${dim.h}px`,
-              transform: `scale(${scale})`,
-              transformOrigin: 'top left',
-            }}
+            style={iframeStyle}
             // sandbox keeps the iframe isolated; allow-scripts so postMessage
             // and hydration work, allow-same-origin so the storefront's
             // session cookies (if any) don't break it.
