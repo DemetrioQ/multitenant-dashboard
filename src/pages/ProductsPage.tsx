@@ -544,9 +544,9 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       )}
 
       {showCreate && (
-        <Modal title="Add Product" onClose={() => setShowCreate(false)} size="lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <form onSubmit={handleCreate} className="space-y-4">
+        <Modal title="Add Product" onClose={() => setShowCreate(false)} size="xl">
+          <div className="flex flex-col md:flex-row gap-6">
+            <form onSubmit={handleCreate} className="space-y-4 md:w-[360px] md:flex-shrink-0">
               <ProductFormFields
                 form={createForm}
                 onChange={setCreateForm}
@@ -571,7 +571,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
                 </Button>
               </div>
             </form>
-            <div className="md:min-h-[500px]">
+            <div className="flex-1 md:min-h-[600px] min-w-0">
               <p className="text-xs text-gray-500 mb-2">Storefront preview</p>
               <StorefrontPreview storeUrl={storeUrl} product={toPreview(createForm)} />
             </div>
@@ -580,9 +580,9 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       )}
 
       {editing && (
-        <Modal title="Edit Product" onClose={() => setEditing(null)} size="lg">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <form onSubmit={handleEdit} className="space-y-4">
+        <Modal title="Edit Product" onClose={() => setEditing(null)} size="xl">
+          <div className="flex flex-col md:flex-row gap-6">
+            <form onSubmit={handleEdit} className="space-y-4 md:w-[360px] md:flex-shrink-0">
               <ProductFormFields
                 form={editForm}
                 onChange={setEditForm}
@@ -607,7 +607,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
                 </Button>
               </div>
             </form>
-            <div className="md:min-h-[500px]">
+            <div className="flex-1 md:min-h-[600px] min-w-0">
               <p className="text-xs text-gray-500 mb-2">Storefront preview</p>
               <StorefrontPreview storeUrl={storeUrl} product={toPreview(editForm)} />
             </div>

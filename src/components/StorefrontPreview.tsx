@@ -23,13 +23,13 @@ interface Props {
   product: PreviewProductInput
 }
 
-// Intrinsic widths the iframe is rendered at — desktop is then visually
-// scaled down via CSS transform to fit the modal column. These match
-// common storefront breakpoints so the layout the user sees in preview is
+// Intrinsic dimensions the iframe is rendered at — visually scaled down
+// via CSS transform to fit the available stage width. These match common
+// storefront breakpoints so the layout the user sees in the preview is
 // the layout the user will see on a real device of that class.
-const VIEWPORT_WIDTH: Record<Viewport, number> = {
-  mobile: 390, // iPhone-ish
-  desktop: 1280,
+const VIEWPORT_DIM: Record<Viewport, { w: number; h: number }> = {
+  mobile: { w: 390, h: 844 },
+  desktop: { w: 1280, h: 900 },
 }
 
 function buildInitialUrl(storeUrl: string, view: View, product: PreviewProductInput): string {
@@ -63,17 +63,16 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
   const [ready, setReady] = useState(false)
   const [scale, setScale] = useState(1)
 
-  // Fit the iframe (rendered at its intrinsic VIEWPORT_WIDTH) inside the
+  // Fit the iframe (rendered at its intrinsic dimensions) inside the
   // available stage width via CSS transform: scale(...). We never up-scale
-  // beyond 1; mobile-width usually fits without any scaling.
+  // beyond 1; mobile usually fits without any scaling.
   useLayoutEffect(() => {
     const stage = stageRef.current
     if (!stage) return
-    const intrinsicWidth = VIEWPORT_WIDTH[viewport]
+    const dim = VIEWPORT_DIM[viewport]
     function recalc() {
       if (!stage) return
-      const w = stage.clientWidth
-      setScale(Math.min(1, w / intrinsicWidth))
+      setScale(Math.min(1, stage.clientWidth / dim.w))
     }
     recalc()
     const ro = new ResizeObserver(recalc)
@@ -117,7 +116,12 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
     )
   }
 
-  const intrinsicWidth = VIEWPORT_WIDTH[viewport]
+  const dim = VIEWPORT_DIM[viewport]
+  // The wrapper is sized to the iframe's *visual* (post-transform) box.
+  // CSS transforms don't change layout size, so without this trick the
+  // iframe's 1280×900 layout box would push the modal much taller than
+  // what's actually visible.
+  const visualHeight = dim.h * scale
 
   return (
     <div className="flex flex-col h-full min-h-[400px] rounded-lg border border-gray-800 bg-gray-950 overflow-hidden">
@@ -157,24 +161,25 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
           </a>
         </div>
       </div>
-      <div ref={stageRef} className="flex-1 overflow-hidden bg-gray-950 grid place-items-start">
-        <iframe
-          ref={iframeRef}
-          src={initialSrc ?? undefined}
-          title="Storefront preview"
-          className="bg-white border-0"
-          style={{
-            width: `${intrinsicWidth}px`,
-            // Fill the full vertical space of the stage even after scaling.
-            height: `${(stageRef.current?.clientHeight ?? 600) / scale}px`,
-            transform: `scale(${scale})`,
-            transformOrigin: 'top left',
-          }}
-          // sandbox keeps the iframe isolated; allow-scripts so postMessage and
-          // hydration work, allow-same-origin so the storefront's session
-          // cookies (if any) don't break it.
-          sandbox="allow-scripts allow-same-origin"
-        />
+      <div ref={stageRef} className="flex-1 overflow-auto bg-gray-950 p-2">
+        <div className="relative mx-auto" style={{ width: dim.w * scale, height: visualHeight }}>
+          <iframe
+            ref={iframeRef}
+            src={initialSrc ?? undefined}
+            title="Storefront preview"
+            className="bg-white border-0 absolute top-0 left-0"
+            style={{
+              width: `${dim.w}px`,
+              height: `${dim.h}px`,
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
+            }}
+            // sandbox keeps the iframe isolated; allow-scripts so postMessage
+            // and hydration work, allow-same-origin so the storefront's
+            // session cookies (if any) don't break it.
+            sandbox="allow-scripts allow-same-origin"
+          />
+        </div>
       </div>
     </div>
   )
