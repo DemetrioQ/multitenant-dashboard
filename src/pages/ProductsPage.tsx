@@ -544,7 +544,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       )}
 
       {showCreate && (
-        <Modal title="Add Product" onClose={() => setShowCreate(false)} size="xl">
+        <Modal title="Add Product" onClose={() => setShowCreate(false)} size="full">
           <div className="flex flex-col md:flex-row gap-6">
             <form onSubmit={handleCreate} className="space-y-4 md:w-[360px] md:flex-shrink-0">
               <ProductFormFields
@@ -580,7 +580,7 @@ export function ProductsPage({ initialCreate = false }: { initialCreate?: boolea
       )}
 
       {editing && (
-        <Modal title="Edit Product" onClose={() => setEditing(null)} size="xl">
+        <Modal title="Edit Product" onClose={() => setEditing(null)} size="full">
           <div className="flex flex-col md:flex-row gap-6">
             <form onSubmit={handleEdit} className="space-y-4 md:w-[360px] md:flex-shrink-0">
               <ProductFormFields

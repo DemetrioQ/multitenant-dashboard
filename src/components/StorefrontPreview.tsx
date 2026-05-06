@@ -178,9 +178,16 @@ export function StorefrontPreview({ storeUrl, product }: Props) {
       </div>
       <div
         ref={stageRef}
-        className={`flex-1 bg-gray-950 ${isDetail ? 'overflow-auto p-2' : 'overflow-hidden'}`}
+        className={`flex-1 bg-gray-950 ${isDetail ? 'overflow-auto p-4' : 'overflow-hidden'}`}
       >
-        <div className="relative mx-auto" style={wrapperStyle}>
+        <div
+          className={`relative mx-auto bg-white ${
+            isDetail && viewport === 'mobile'
+              ? 'rounded-[28px] ring-4 ring-gray-800 shadow-2xl overflow-hidden mt-2'
+              : ''
+          }`}
+          style={wrapperStyle}
+        >
           <iframe
             ref={iframeRef}
             src={initialSrc ?? undefined}

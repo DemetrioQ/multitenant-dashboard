@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
-type ModalSize = 'sm' | 'md' | 'lg' | 'xl'
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
 
 interface ModalProps {
   title: string
@@ -15,6 +15,7 @@ const SIZE_CLASS: Record<ModalSize, string> = {
   md: 'max-w-2xl',
   lg: 'max-w-4xl',
   xl: 'max-w-6xl',
+  full: 'max-w-[min(1500px,95vw)]',
 }
 
 const FOCUSABLE =
