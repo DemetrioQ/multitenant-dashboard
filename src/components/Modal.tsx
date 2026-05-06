@@ -25,6 +25,15 @@ export function Modal({ title, onClose, children, size = 'sm' }: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Stable ref for onClose so the focus-trap effect runs ONCE per modal
+  // mount instead of every parent render. Without this, every keystroke in
+  // a form input that lives in the parent re-creates onClose, re-runs the
+  // effect, and steals focus back to the close button.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     const panel = panelRef.current
@@ -33,7 +42,7 @@ export function Modal({ title, onClose, children, size = 'sm' }: ModalProps) {
 
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panel) return
@@ -57,7 +66,7 @@ export function Modal({ title, onClose, children, size = 'sm' }: ModalProps) {
       document.removeEventListener('keydown', handler)
       previouslyFocused?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
