@@ -49,3 +49,16 @@ export const resendVerification = (slug: string, email: string) =>
 
 export const changePassword = (currentPassword: string, newPassword: string) =>
   apiClient.post('/api/v1/auth/change-password', { currentPassword, newPassword })
+
+export interface DemoProvisionResponse {
+  jwtToken: string
+  tenantSlug: string
+  tenantName: string
+  demoExpiresAt: string
+}
+
+export const demoProvision = () =>
+  apiClient.post<DemoProvisionResponse>('/api/v1/auth/demo/provision').then((r) => r.data)
+
+export const demoElevate = (role: string) =>
+  apiClient.post<{ jwtToken: string }>('/api/v1/auth/demo/elevate', { role }).then((r) => r.data)

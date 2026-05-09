@@ -20,6 +20,7 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { ErrorBoundary } from './ErrorBoundary'
 import { FetchingBar } from './PageStates'
+import { DemoBanner } from './DemoBanner'
 import { safeHttpHref } from '../utils/format'
 
 export function Layout() {
@@ -192,6 +193,8 @@ export function Layout() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
+        <DemoBanner />
+
         {/* Mobile top bar */}
         <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800">
           <button

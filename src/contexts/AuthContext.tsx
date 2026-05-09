@@ -1,7 +1,7 @@
-import { createContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BASE_URL, resetRefreshState } from '../api/client'
-import { logout as apiLogout } from '../api/auth'
+import { logout as apiLogout, demoProvision, demoElevate } from '../api/auth'
 import { getTenantMe } from '../api/tenants'
 import { getMe } from '../api/users'
 import { clearQueryCache } from '../lib/queryClient'
@@ -31,11 +31,21 @@ function decodeUserId(token: string): string | null {
   )
 }
 
+function decodeIsDemo(token: string): boolean {
+  return decodePayload(token)['demo'] === 'true'
+}
+
+function decodeDemoExpiresAt(token: string): string | null {
+  return (decodePayload(token)['demo_expires_at'] as string) ?? null
+}
+
 interface AuthCoreState {
   token: string | null
   userId: string | null
   role: string | null
   isAuthenticated: boolean
+  isDemo: boolean
+  demoExpiresAt: string | null
 }
 
 interface AuthContextType {
@@ -49,8 +59,11 @@ interface AuthContextType {
   isAuthenticated: boolean
   isAdmin: boolean // true for 'admin' and 'super-admin'
   isSuperAdmin: boolean // true only for 'super-admin' (platform-level account)
+  isDemo: boolean
+  demoExpiresAt: string | null
   signIn: (token: string, tenantSlug?: string) => void
   signOut: () => void
+  elevateDemoRole: (role: 'member' | 'admin' | 'super-admin') => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null)
@@ -61,8 +74,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: null,
     role: null,
     isAuthenticated: false,
+    isDemo: false,
+    demoExpiresAt: null,
   })
   const [bootstrapped, setBootstrapped] = useState(false)
+
+  const applyToken = useCallback((token: string) => {
+    sessionStorage.setItem('token', token)
+    setState({
+      token,
+      userId: decodeUserId(token),
+      role: decodeRole(token),
+      isAuthenticated: true,
+      isDemo: decodeIsDemo(token),
+      demoExpiresAt: decodeDemoExpiresAt(token),
+    })
+  }, [])
 
   const tenantScoped = state.isAuthenticated && state.role !== 'super-admin'
 
@@ -83,50 +110,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (tenantData?.slug) localStorage.setItem('tenantSlug', tenantData.slug)
   }, [tenantData?.slug])
 
-  // On mount: silently restore session via HttpOnly cookie.
-  // Skip if there's no sign of a prior session to avoid unnecessary failed refresh calls.
+  // On mount: try to silently restore via HttpOnly refresh cookie. If that fails
+  // (or no prior session exists), auto-provision a per-visitor demo account.
+  // Portfolio behavior: visitors should never see a login wall on first arrival.
   useEffect(() => {
-    const hadSession = !!localStorage.getItem('tenantSlug') || !!sessionStorage.getItem('token')
-
-    if (!hadSession) {
-      setBootstrapped(true)
-      return
-    }
-
     const restore = async () => {
-      try {
-        const res = await fetch(REFRESH_URL, { method: 'POST', credentials: 'include' })
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        sessionStorage.setItem('token', data.jwtToken)
-        setState({
-          token: data.jwtToken,
-          userId: decodeUserId(data.jwtToken),
-          role: decodeRole(data.jwtToken),
-          isAuthenticated: true,
-        })
-      } catch {
+      const hadSession = !!localStorage.getItem('tenantSlug') || !!sessionStorage.getItem('token')
+
+      if (hadSession) {
+        try {
+          const res = await fetch(REFRESH_URL, { method: 'POST', credentials: 'include' })
+          if (res.ok) {
+            const data = await res.json()
+            applyToken(data.jwtToken)
+            setBootstrapped(true)
+            return
+          }
+        } catch {
+          // fall through to demo provision
+        }
         sessionStorage.removeItem('token')
         localStorage.removeItem('tenantSlug')
+      }
+
+      try {
+        const data = await demoProvision()
+        localStorage.setItem('tenantSlug', data.tenantSlug)
+        applyToken(data.jwtToken)
+      } catch {
+        // demo provision shouldn't fail in practice, but fall through to login
       } finally {
         setBootstrapped(true)
       }
     }
 
     restore()
-  }, [])
+  }, [applyToken])
 
   const signIn = (token: string, tenantSlug?: string) => {
-    sessionStorage.setItem('token', token)
     if (tenantSlug) localStorage.setItem('tenantSlug', tenantSlug)
     resetRefreshState()
     clearQueryCache()
-    setState({
-      token,
-      userId: decodeUserId(token),
-      role: decodeRole(token),
-      isAuthenticated: true,
-    })
+    applyToken(token)
   }
 
   const signOut = async () => {
@@ -138,7 +163,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('token')
     localStorage.removeItem('tenantSlug')
     clearQueryCache()
-    setState({ token: null, userId: null, role: null, isAuthenticated: false })
+    setState({
+      token: null,
+      userId: null,
+      role: null,
+      isAuthenticated: false,
+      isDemo: false,
+      demoExpiresAt: null,
+    })
+  }
+
+  const elevateDemoRole = async (role: 'member' | 'admin' | 'super-admin') => {
+    const data = await demoElevate(role)
+    clearQueryCache()
+    applyToken(data.jwtToken)
   }
 
   if (!bootstrapped) {
@@ -164,8 +202,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatarUrl: profileData?.avatarUrl ?? null,
         isAdmin: state.role === 'admin' || state.role === 'super-admin',
         isSuperAdmin: state.role === 'super-admin',
+        isDemo: state.isDemo,
+        demoExpiresAt: state.demoExpiresAt,
         signIn,
         signOut,
+        elevateDemoRole,
       }}
     >
       {children}

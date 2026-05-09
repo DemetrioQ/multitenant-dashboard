@@ -57,7 +57,7 @@ function validatePassword(f: PasswordForm): PasswordFieldErrors {
 }
 
 export function ProfilePage() {
-  const { signOut } = useAuth()
+  const { signOut, isDemo } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -283,66 +283,75 @@ export function ProfilePage() {
             </div>
           </form>
 
-          <div className="mt-10 mb-4 flex items-center gap-3">
-            <Lock className="w-5 h-5 text-gray-400" />
-            <h2 className="text-lg font-semibold text-white">Change password</h2>
-          </div>
-          <p className="text-gray-400 text-sm mb-4">
-            After changing your password, you'll be signed out of all sessions.
-          </p>
-
-          <form onSubmit={handleChangePassword} noValidate>
-            <Card className="divide-y divide-gray-800">
-              <div className="px-6 py-5 space-y-1.5">
-                <Label htmlFor="current-password">Current password</Label>
-                <Input
-                  id="current-password"
-                  type="password"
-                  value={pwForm.currentPassword}
-                  onChange={setPw('currentPassword')}
-                  autoComplete="current-password"
-                  error={!!pwErrors.currentPassword}
-                />
-                <FieldError message={pwErrors.currentPassword} />
-              </div>
-              <div className="px-6 py-5 space-y-1.5">
-                <Label htmlFor="new-password">New password</Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  value={pwForm.newPassword}
-                  onChange={setPw('newPassword')}
-                  autoComplete="new-password"
-                  error={!!pwErrors.newPassword}
-                />
-                <FieldError message={pwErrors.newPassword} />
-              </div>
-              <div className="px-6 py-5 space-y-1.5">
-                <Label htmlFor="confirm-new-password">Confirm new password</Label>
-                <Input
-                  id="confirm-new-password"
-                  type="password"
-                  value={pwForm.confirmNewPassword}
-                  onChange={setPw('confirmNewPassword')}
-                  autoComplete="new-password"
-                  error={!!pwErrors.confirmNewPassword}
-                />
-                <FieldError message={pwErrors.confirmNewPassword} />
-              </div>
-            </Card>
-
-            {pwSubmitError && (
-              <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
-                {pwSubmitError}
-              </p>
-            )}
-
-            <div className="mt-6 flex justify-end">
-              <Button type="submit" disabled={pwSaving} size="lg">
-                {pwSaving ? 'Changing...' : 'Change password'}
-              </Button>
+          {isDemo ? (
+            <div className="mt-10 mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-amber-200 text-sm">
+              <span className="font-medium">Password changes are disabled on demo accounts.</span>{' '}
+              Real accounts can manage credentials here.
             </div>
-          </form>
+          ) : (
+            <>
+              <div className="mt-10 mb-4 flex items-center gap-3">
+                <Lock className="w-5 h-5 text-gray-400" />
+                <h2 className="text-lg font-semibold text-white">Change password</h2>
+              </div>
+              <p className="text-gray-400 text-sm mb-4">
+                After changing your password, you'll be signed out of all sessions.
+              </p>
+
+              <form onSubmit={handleChangePassword} noValidate>
+                <Card className="divide-y divide-gray-800">
+                  <div className="px-6 py-5 space-y-1.5">
+                    <Label htmlFor="current-password">Current password</Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={pwForm.currentPassword}
+                      onChange={setPw('currentPassword')}
+                      autoComplete="current-password"
+                      error={!!pwErrors.currentPassword}
+                    />
+                    <FieldError message={pwErrors.currentPassword} />
+                  </div>
+                  <div className="px-6 py-5 space-y-1.5">
+                    <Label htmlFor="new-password">New password</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={pwForm.newPassword}
+                      onChange={setPw('newPassword')}
+                      autoComplete="new-password"
+                      error={!!pwErrors.newPassword}
+                    />
+                    <FieldError message={pwErrors.newPassword} />
+                  </div>
+                  <div className="px-6 py-5 space-y-1.5">
+                    <Label htmlFor="confirm-new-password">Confirm new password</Label>
+                    <Input
+                      id="confirm-new-password"
+                      type="password"
+                      value={pwForm.confirmNewPassword}
+                      onChange={setPw('confirmNewPassword')}
+                      autoComplete="new-password"
+                      error={!!pwErrors.confirmNewPassword}
+                    />
+                    <FieldError message={pwErrors.confirmNewPassword} />
+                  </div>
+                </Card>
+
+                {pwSubmitError && (
+                  <p className="mt-4 text-red-400 text-sm bg-red-950/40 border border-red-900/50 rounded-lg px-4 py-3">
+                    {pwSubmitError}
+                  </p>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button type="submit" disabled={pwSaving} size="lg">
+                    {pwSaving ? 'Changing...' : 'Change password'}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
         </>
       )}
 
