@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { ExternalLink, Store } from 'lucide-react'
+import { ExternalLink, Sparkles, Store } from 'lucide-react'
 import { login, register, resendVerification } from '../api/auth'
 import { createTenant } from '../api/tenants'
 import { getStores, type StoreEntry } from '../api/stores'
@@ -156,7 +156,21 @@ function safeReturnPath(raw: string | null): string {
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, signIn } = useAuth()
+  const { isAuthenticated, signIn, signInAsDemo } = useAuth()
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoError, setDemoError] = useState<string | null>(null)
+
+  const handleDemoSignIn = async () => {
+    setDemoLoading(true)
+    setDemoError(null)
+    try {
+      await signInAsDemo()
+      navigate('/dashboard')
+    } catch {
+      setDemoError('Could not start a demo session. Try again in a moment.')
+      setDemoLoading(false)
+    }
+  }
   const flash = (location.state as { flash?: string } | null)?.flash ?? null
   const returnTo = safeReturnPath(new URLSearchParams(location.search).get('return'))
 
@@ -283,6 +297,29 @@ export function LoginPage() {
             {mode === 'signin' ? 'Sign in to your account' : 'Create a new tenant and account'}
           </p>
         </div>
+
+        {!registered && !unverified && (
+          <div className="mb-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-indigo-500/10 p-5">
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">Just exploring?</p>
+                <p className="text-xs text-gray-300 mt-0.5">
+                  Skip sign-up — get a fully-seeded demo tenant with a role toggle. Resets in 24h.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDemoSignIn}
+              disabled={demoLoading}
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:bg-amber-500/50 text-gray-950 text-sm font-semibold py-2.5 transition-colors"
+            >
+              {demoLoading ? 'Setting up your demo…' : 'Try the demo'}
+            </button>
+            {demoError && <p className="mt-2 text-xs text-red-300">{demoError}</p>}
+          </div>
+        )}
 
         {!registered && !unverified && (
           <div className="flex bg-gray-900 border border-gray-800 rounded-xl p-1 mb-4">

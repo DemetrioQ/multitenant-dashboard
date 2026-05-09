@@ -8,6 +8,7 @@ import { clearQueryCache } from '../lib/queryClient'
 import { qk } from '../lib/queryKeys'
 
 const REFRESH_URL = `${BASE_URL}/api/v1/auth/refresh`
+const NO_AUTO_DEMO_KEY = 'dashboard:no-auto-demo'
 
 function decodePayload(token: string): Record<string, unknown> {
   try {
@@ -63,6 +64,7 @@ interface AuthContextType {
   demoExpiresAt: string | null
   signIn: (token: string, tenantSlug?: string) => void
   signOut: () => void
+  signInAsDemo: () => Promise<void>
   elevateDemoRole: (role: 'member' | 'admin' | 'super-admin') => Promise<void>
 }
 
@@ -111,8 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [tenantData?.slug])
 
   // On mount: try to silently restore via HttpOnly refresh cookie. If that fails
-  // (or no prior session exists), auto-provision a per-visitor demo account.
-  // Portfolio behavior: visitors should never see a login wall on first arrival.
+  // and the visitor hasn't explicitly signed out, auto-provision a per-visitor
+  // demo account. Once they sign out, NO_AUTO_DEMO_KEY persists across reloads
+  // so they land on /login with the "Try the demo" button instead.
   useEffect(() => {
     const restore = async () => {
       const hadSession = !!localStorage.getItem('tenantSlug') || !!sessionStorage.getItem('token')
@@ -127,10 +130,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return
           }
         } catch {
-          // fall through to demo provision
+          // fall through
         }
         sessionStorage.removeItem('token')
         localStorage.removeItem('tenantSlug')
+      }
+
+      const noAutoDemo = localStorage.getItem(NO_AUTO_DEMO_KEY) === 'true'
+      if (noAutoDemo) {
+        setBootstrapped(true)
+        return
       }
 
       try {
@@ -149,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = (token: string, tenantSlug?: string) => {
     if (tenantSlug) localStorage.setItem('tenantSlug', tenantSlug)
+    localStorage.removeItem(NO_AUTO_DEMO_KEY)
     resetRefreshState()
     clearQueryCache()
     applyToken(token)
@@ -162,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     sessionStorage.removeItem('token')
     localStorage.removeItem('tenantSlug')
+    localStorage.setItem(NO_AUTO_DEMO_KEY, 'true')
     clearQueryCache()
     setState({
       token: null,
@@ -171,6 +182,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isDemo: false,
       demoExpiresAt: null,
     })
+  }
+
+  const signInAsDemo = async () => {
+    const data = await demoProvision()
+    localStorage.setItem('tenantSlug', data.tenantSlug)
+    localStorage.removeItem(NO_AUTO_DEMO_KEY)
+    resetRefreshState()
+    clearQueryCache()
+    applyToken(data.jwtToken)
   }
 
   const elevateDemoRole = async (role: 'member' | 'admin' | 'super-admin') => {
@@ -206,6 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         demoExpiresAt: state.demoExpiresAt,
         signIn,
         signOut,
+        signInAsDemo,
         elevateDemoRole,
       }}
     >
